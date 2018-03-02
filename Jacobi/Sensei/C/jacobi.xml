@@ -1,0 +1,16 @@
+ <!-- SENSEI ConfigurableAnalysis Configuration file.
+      set enabled="1" on analyses you wish to enable -->
+<sensei>
+
+  <!-- Libsim Analyses -->
+  <analysis type="libsim" plots="Pseudocolor,Mesh" plotvars="temperature,mesh"
+    image-filename="a%ts" image-width="800" image-height="800" image-format="png"
+    enabled="1" period="100"/>
+
+  <!-- ADIOS Analyses -->
+  <analysis type="adios" filename="oscillators.bp" method="MPI" enabled="0" />
+
+  <!-- Available with ENABLE_VTK_XMLP -->
+  <analysis type="PosthocIO" array="temperature" association="point"
+    enabled="1" period="100" mode="vtkXmlP" output_dir="./" />
+</sensei>
