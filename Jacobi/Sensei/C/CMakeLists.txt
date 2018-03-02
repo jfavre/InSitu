@@ -1,7 +1,7 @@
 CMAKE_MINIMUM_REQUIRED( VERSION 2.8)
 PROJECT (PJACOBI)
 
-OPTION(INSITU_COUPLING "create an executable using SENSEI" OFF)
+OPTION(INSITU_COUPLING "create an executable using SENSEI" ON)
 if(INSITU_COUPLING)
   find_package(SENSEI REQUIRED)
 endif()

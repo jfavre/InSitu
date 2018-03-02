@@ -34,8 +34,8 @@ void JacobiDataAdaptor::Initialize(
   this->PointExtent[1] = start_extents_x + l_x - 1;
   this->PointExtent[2] = start_extents_y;
   this->PointExtent[3] = start_extents_y + l_y - 1;
-  this->PointExtent[4] = 0; // we are in 2-D
-  this->PointExtent[5] = 0; // we are in 2-D
+  this->PointExtent[4] = start_extents_z;           // we are in 2-D. Should be 0
+  this->PointExtent[5] = start_extents_z + l_z - 1; // we are in 2-D. Should be 0
 
   // This is point-based.
   this->WholeExtent[0] = 0;
@@ -75,12 +75,6 @@ vtkDataObject* JacobiDataAdaptor::GetMesh(bool vtkNotUsed(structure_only))
       this->PointExtent[0], this->PointExtent[1],
       this->PointExtent[2], this->PointExtent[3],
       this->PointExtent[4], this->PointExtent[5]);
-/*
-std::cout << "SetExtent="<< this->PointExtent[0] << ", " << this->PointExtent[1] << ", " <<
-                            this->PointExtent[2] << ", " << this->PointExtent[3] << ", " <<
-                            this->PointExtent[4] << ", " << this->PointExtent[5] << ", " <<
-std::endl;
-*/
     }
   return this->Mesh;
 }

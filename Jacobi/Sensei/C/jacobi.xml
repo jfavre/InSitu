@@ -12,5 +12,5 @@
 
   <!-- Available with ENABLE_VTK_XMLP -->
   <analysis type="PosthocIO" array="temperature" association="point"
-    enabled="1" period="100" mode="vtkXmlP" output_dir="./" />
+    enabled="0" period="100" mode="vtkXmlP" output_dir="./" />
 </sensei>

@@ -49,7 +49,7 @@ int main(int argc, char *argv[])
                     sim.m+1, sim.m+1, 1,  // global length, not extents!
                     sim.bx+2, sim.by+2, 1, // length of each sub-domain
                     sim.rankx * (sim.bx+1), sim.ranky * (sim.by+1), 0, // start_extents
-                    "/users/jfavre/Projects/InSitu/Jacobi/Sensei/jacobi.xml");
+                    "/users/jfavre/Projects/InSitu/Jacobi/Sensei/C/jacobi.xml");
 #endif
 
 
