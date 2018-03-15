@@ -63,7 +63,7 @@ void MPI_Partition(int PartitioningDimension, simulation_data *sim)
   sim->bx = sim->m / sim->cart_dims[0]; // block size in x
   sim->by = sim->m / sim->cart_dims[1]; // block size in y
 
-  MPI_Type_contiguous(sim->bx+1, MPI_DOUBLE, &rowtype); 
+  MPI_Type_contiguous(sim->bx+2, MPI_DOUBLE, &rowtype); 
   MPI_Type_commit(&rowtype);
 
   MPI_Type_vector(sim->by, 1, sim->bx+2, MPI_DOUBLE, &coltype); // count, blocklength, stride,

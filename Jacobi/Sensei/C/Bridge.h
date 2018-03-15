@@ -11,9 +11,7 @@ extern "C" {
 
   /// Called before simulation loop
   void bridge_initialize(MPI_Comm comm,
-    int g_x, int g_y, int g_z,
-    int l_x, int l_y, int l_z,
-    uint64_t start_extents_x, uint64_t start_extents_y, uint64_t start_extents_z,
+    int m, int rankx, int ranky, int bx, int by, int ng,
     const char* config_file);
 
   /// Called per timestep in the simulation loop

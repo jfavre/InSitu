@@ -1,0 +1,23 @@
+<!-- SENSEI ConfigurableAnalysis Configuration file.
+     set enabled="1" on analyses you wish to enable -->
+<sensei>
+  <!-- VTK I/O -->
+  <analysis type="PosthocIO" mode="paraview" output_dir="./" enabled="0">
+    <mesh name="mesh">
+        <point_arrays> temperature </point_arrays>
+    </mesh>
+  </analysis>
+
+  <!-- CATALYST -->
+  <analysis type="catalyst" pipeline="pythonscript"
+    filename="../jacobi_catalyst_sensei_2.py" enabled="1" />
+
+  <!-- LIBSIM -->
+  <analysis type="libsim" plots="Pseudocolor,Mesh" plotvars="temperature,mesh"
+    image-filename="jacobi_%ts" image-width="800" image-height="800"
+    slice-project="1" image-format="png" enabled="0"/>
+
+  <!-- ADIOS -->
+  <analysis type="adios" filename="jacobi.bp" method="MPI" enabled="0" />
+
+</sensei>
