@@ -45,11 +45,16 @@ int main(int argc, char *argv[])
   set_initial_bc(&sim);
 
 #ifdef ENABLE_SENSEI
-  bridge_initialize(MPI_COMM_WORLD,
-                    sim.m+1, sim.m+1, 1,  // global length, not extents!
-                    sim.bx+2, sim.by+2, 1, // length of each sub-domain
-                    sim.rankx * (sim.bx+1), sim.ranky * (sim.by+1), 0, // start_extents
-                    "/users/jfavre/Projects/InSitu/Jacobi/Sensei/C/jacobi.xml");
+  if (argc < 2)
+    {
+    fprintf(stderr, "Error: usage\npjacobi config.xml\n\n");
+    return -1;
+    }
+
+  const char *config = argv[1];
+
+  bridge_initialize(MPI_COMM_WORLD, sim.m,
+    sim.rankx, sim.ranky, sim.bx, sim.by, 1, config);
 #endif
 
 
