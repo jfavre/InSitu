@@ -69,7 +69,7 @@ def CreateCoProcessor():
       contour1 = Contour(Input=warpByScalar1)
       contour1.ContourBy = ['POINTS', 'temperature']
       contour1.ComputeScalars = 1
-      contour1.Isosurfaces = [0.0, 0.04344634782608695, 0.0868926956521739, 0.13033904347826086, 0.1737853913043478, 0.21723173913043478, 0.2606780869565217, 0.3041244347826087, 0.3475707826086956, 0.39101713043478264, 0.43446347826086956, 0.47790982608695654, 0.5213561739130435, 0.5648025217391304, 0.6082488695652174, 0.6516952173913043, 0.6951415652173912, 0.7385879130434782, 0.7820342608695653, 0.8254806086956522, 0.8689269565217391, 0.912373304347826, 0.9558196521739131, 0.999266]
+      contour1.Isosurfaces = [i*.1 for i in range(11)]
       contour1.PointMergeMethod = 'Uniform Binning'
 
       # ----------------------------------------------------------------
@@ -149,6 +149,12 @@ def CreateCoProcessor():
       temperatureLUTColorBar.ComponentTitle = ''
       temperatureLUTColorBar.ScalarBarLength = 0.33000000000000007
 
+      # create a new 'Annotate Time Filter'
+      annotateTimeFilter1 = AnnotateTimeFilter(Input=meshpvd)
+      annotateTimeFilter1Display = Show(annotateTimeFilter1, renderView1)
+      annotateTimeFilter1Display.Color = [0.0, 0.0, 0.0]
+      annotateTimeFilter1Display.FontFile = ''
+
       # ----------------------------------------------------------------
       # finally, restore active source
       SetActiveSource(warpByScalar2)
@@ -161,7 +167,7 @@ def CreateCoProcessor():
 
   coprocessor = CoProcessor()
   # these are the frequencies at which the coprocessor updates.
-  freqs = {'mesh': [1, 1, 1, 1]}
+  freqs = {'mesh': [1, 1, 1, 1, 1]}
   coprocessor.SetUpdateFrequencies(freqs)
   return coprocessor
 
