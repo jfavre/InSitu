@@ -1,0 +1,5 @@
+<sensei>
+  <!-- ADIOS transports -->
+  <analysis type="adios" filename="jacobi.bp" method="FLEXPATH" enabled="1" />
+  <analysis type="adios" filename="jacobi.bp" method="MPI" enabled="0" />
+</sensei>

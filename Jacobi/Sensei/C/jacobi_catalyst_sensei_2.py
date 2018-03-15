@@ -153,7 +153,6 @@ def CreateCoProcessor():
       annotateTimeFilter1 = AnnotateTimeFilter(Input=meshpvd)
       annotateTimeFilter1Display = Show(annotateTimeFilter1, renderView1)
       annotateTimeFilter1Display.Color = [0.0, 0.0, 0.0]
-      annotateTimeFilter1Display.FontFile = ''
 
       # ----------------------------------------------------------------
       # finally, restore active source
