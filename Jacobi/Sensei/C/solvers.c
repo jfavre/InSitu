@@ -296,7 +296,7 @@ void WriteFinalGrid(simulation_data *sim)
   fprintf(fpxmf,"         <DataItem Name=\"Origin\" NumberType=\"Float\" Dimensions=\"3\" Format=\"XML\">0. 0. 0.</DataItem>\n");
   fprintf(fpxmf,"         <DataItem Name=\"Spacing\" NumberType=\"Float\" Dimensions=\"3\" Format=\"XML\">1. 1. 1.</DataItem>\n");
   fprintf(fpxmf,"      </Geometry>\n");
-  fprintf(fpxmf,"      <Attribute Name=\"Temperature\" Active=\"1\" AttributeType=\"Scalar\" Center=\"Node\">\n");
+  fprintf(fpxmf,"      <Attribute Name=\"temperature\" Active=\"1\" AttributeType=\"Scalar\" Center=\"Node\">\n");
   fprintf(fpxmf,"          <DataItem Dimensions=\"1 %d %d\" NumberType=\"Float\" Precision=\"8\" Format=\"Binary\">Jacobi.bin</DataItem>\n", sim->m+2, sim->m+2);
   fprintf(fpxmf,"      </Attribute>\n");
   fprintf(fpxmf,"    </Grid>\n");
