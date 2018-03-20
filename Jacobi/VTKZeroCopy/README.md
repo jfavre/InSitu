@@ -3,6 +3,8 @@ This illustrates use of zero copy in VTK Data Arrays.
 
 ## Compiling
 ```
+mkdir build
+cd build
 cmake -DVTK_DIR=~/sc17/software/vtk/8.0.0/lib/
 cmake/ ../
 make
