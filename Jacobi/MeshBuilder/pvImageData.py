@@ -14,7 +14,7 @@ viewID = GetRenderView()
 RequestData = """
 import numpy as np
 from vtk.numpy_interface import dataset_adapter as dsa
-import h5py
+
 executive = self.GetExecutive()
 outInfo = executive.GetOutputInformation(0)
 exts = [executive.UPDATE_EXTENT().Get(outInfo, i) for i in range(6)]
@@ -23,6 +23,7 @@ ts = executive.UPDATE_TIME_STEP().Get(outInfo)
 dims = [exts[1]-exts[0]+1, exts[3]-exts[2]+1, exts[5]-exts[4]+1]
 global_dims = [whole[1]-whole[0]+1, whole[3]-whole[2]+1, whole[5]-whole[4]+1]
 output.SetExtent(exts)
+
 #pid = outInfo.Get(executive.UPDATE_PIECE_NUMBER())
 #gl = outInfo.Get(executive.UPDATE_NUMBER_OF_GHOST_LEVELS())
 #f = open(format("/tmp/n.%d.txt" % pid), "w")
