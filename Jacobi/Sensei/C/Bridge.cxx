@@ -39,10 +39,11 @@ void bridge_initialize(MPI_Comm comm,
 }
 
 //-----------------------------------------------------------------------------
-void bridge_update(int tstep, double time, double* temperature)
+void bridge_update(int tstep, double time, float *cx, float *cy, double* temperature)
 {
   BridgeInternals::GlobalDataAdaptor->SetDataTime(time);
   BridgeInternals::GlobalDataAdaptor->SetDataTimeStep(tstep);
+  BridgeInternals::GlobalDataAdaptor->SetCoordinates(cx, cy);
   BridgeInternals::GlobalDataAdaptor->AddArray("temperature", temperature);
   if (!BridgeInternals::GlobalAnalysisAdaptor->Execute(BridgeInternals::GlobalDataAdaptor))
     {

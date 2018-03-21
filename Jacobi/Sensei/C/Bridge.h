@@ -15,7 +15,8 @@ extern "C" {
     const char* config_file);
 
   /// Called per timestep in the simulation loop
-  void bridge_update(int tstep, double time, double* temperature);
+  void bridge_update(int tstep, double time, 
+                     float *cx, float *cy, double* temperature);
 
   /// Called just before simulation terminates.
   void bridge_finalize();

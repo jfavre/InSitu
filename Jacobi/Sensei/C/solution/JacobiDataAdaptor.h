@@ -25,6 +25,8 @@ public:
   /// Initialize the data adaptor.
   void Initialize(int m, int rankx, int ranky, int bx, int by, int ng);
 
+  void SetCoordinates(float *cx, float *cy);
+
   /// Set the pointers to simulation memory.
   void AddArray(const std::string& name, double* data);
 
@@ -68,7 +70,8 @@ protected:
   int Extent[6];
   double Origin[3];
   double Spacing[3];
-
+  float *cx, *cy;
+  int     bx, by;
 private:
   JacobiDataAdaptor(const JacobiDataAdaptor&); // not implemented.
   void operator=(const JacobiDataAdaptor&); // not implemented.

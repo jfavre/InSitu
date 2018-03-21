@@ -62,7 +62,7 @@ int main(int argc, char *argv[])
     {  // iterate until error below threshold
     simulate_one_timestep(&sim);
 #ifdef ENABLE_SENSEI
-   bridge_update(sim.iter, sim.iter*1.0, sim.Temp);
+   bridge_update(sim.iter, sim.iter*1.0, sim.cx, sim.cy, sim.Temp);
 #endif
     }
 
