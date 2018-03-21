@@ -17,8 +17,6 @@
 
 #include <mpi.h>
 
-#define RECTILINEAR_MESH
-
 namespace pjacobi
 {
 //-----------------------------------------------------------------------------
@@ -27,7 +25,7 @@ senseiNewMacro(JacobiDataAdaptor);
 //-----------------------------------------------------------------------------
 JacobiDataAdaptor::JacobiDataAdaptor()
 {
-    this->cx = this->cy = NULL;
+    this->sim = NULL;
 }
 
 //-----------------------------------------------------------------------------
@@ -36,36 +34,19 @@ JacobiDataAdaptor::~JacobiDataAdaptor()
 }
 
 //-----------------------------------------------------------------------------
-void JacobiDataAdaptor::Initialize(int m, int rankx, int ranky, int bx_, int by_, int ng)
+void JacobiDataAdaptor::Initialize(simulation_data *s) //int m, int rankx, int ranky, int bx_, int by_, int ng)
 {
-  (void)m; // m could be used for whole extents [0 m+2 0 m+2 0 0]
-
-  this->Origin[0] = -double(ng);
-  this->Origin[1] = -double(ng);
-  this->Origin[2] = 0.0;
-
-  this->Spacing[0] = 1.0;
-  this->Spacing[1] = 1.0;
-  this->Spacing[2] = 1.0;
-
-  this->Extent[0] = rankx*(bx - 1);
-  this->Extent[1] = this->Extent[0] + bx + 2*ng - 1;
-  this->Extent[2] = ranky*by;
-  this->Extent[3] = this->Extent[2] + by + 2*ng - 1;
-  this->Extent[4] = 0;
-  this->Extent[5] = 0;
-
-#ifdef RECTILINEAR_MESH
-  this->bx = bx_;
-  this->by = by_;
-#endif
+    this->sim = s;
 }
 
 //-----------------------------------------------------------------------------
-void JacobiDataAdaptor::SetCoordinates(float *cx_, float *cy_)
+void JacobiDataAdaptor::Update(simulation_data *s)
 {
-    this->cx = cx_;
-    this->cy = cy_;
+    this->sim = s;
+
+    this->SetDataTime(sim->iter*1.);
+    this->SetDataTimeStep(sim->iter);
+    this->AddArray("temperature", sim->Temp);
 }
 
 //-----------------------------------------------------------------------------
@@ -128,11 +109,10 @@ int JacobiDataAdaptor::GetMesh(const std::string &meshName, bool structureOnly,
     int n_ranks = 1;
     MPI_Comm_size(MPI_COMM_WORLD, &n_ranks);
 
-#ifdef RECTILINEAR_MESH
     vtkRectilinearGrid *block = vtkRectilinearGrid::New();
     int dims[3];
-    dims[0] = this->bx+2;
-    dims[1] = this->by+2;
+    dims[0] = this->sim->bx+2;
+    dims[1] = this->sim->by+2;
     dims[2] = 1;
     block->SetDimensions(dims);
 
@@ -140,8 +120,8 @@ int JacobiDataAdaptor::GetMesh(const std::string &meshName, bool structureOnly,
     vtkFloatArray *y = vtkFloatArray::New();
     vtkFloatArray *z = vtkFloatArray::New();
     int dontDelete = 1;
-    x->SetArray(this->cx, this->bx+2, dontDelete);
-    y->SetArray(this->cy, this->by+2, dontDelete);
+    x->SetArray(this->sim->cx, this->sim->bx+2, dontDelete);
+    y->SetArray(this->sim->cy, this->sim->by+2, dontDelete);
     z->SetNumberOfTuples(1);
     z->SetTuple1(0,0.);
     block->SetXCoordinates(x);
@@ -155,18 +135,6 @@ int JacobiDataAdaptor::GetMesh(const std::string &meshName, bool structureOnly,
     this->Mesh->SetBlock(0, block);
 
     block->Delete();
-#else
-    vtkImageData *block = vtkImageData::New();
-    block->SetExtent(this->Extent);
-    block->SetOrigin(this->Origin);
-    block->SetSpacing(this->Spacing);
-
-    this->Mesh = vtkSmartPointer<vtkMultiBlockDataSet>::New();
-    this->Mesh->SetNumberOfBlocks(n_ranks); // ?? n_ranks here
-    this->Mesh->SetBlock(rank, block);
-
-    block->Delete();
-#endif
     }
 
   mesh = this->Mesh;
@@ -188,11 +156,7 @@ int JacobiDataAdaptor::AddArray(vtkDataObject* mesh, const std::string &meshName
   int rank = 0;
   MPI_Comm_rank(MPI_COMM_WORLD, &rank);
 
-#ifdef RECTILINEAR_MESH
   vtkRectilinearGrid *block = dynamic_cast<vtkRectilinearGrid*>(mb->GetBlock(0));
-#else
-  vtkImageData *block = dynamic_cast<vtkImageData*>(mb->GetBlock(rank));
-#endif
   if (!block)
     return 0;
 
@@ -222,14 +186,7 @@ int JacobiDataAdaptor::AddArray(vtkDataObject* mesh, const std::string &meshName
     vtkSmartPointer<vtkDoubleArray>& vtkarray = this->Arrays[iterV->first];
     vtkarray = vtkSmartPointer<vtkDoubleArray>::New();
     vtkarray->SetName(arrayName.c_str());
-
-#ifdef RECTILINEAR_MESH
-    vtkIdType size = (this->bx+2) * (this->by+2);
-#else
-    vtkIdType size = (this->Extent[1] - this->Extent[0] + 1) *
-      (this->Extent[3] - this->Extent[2] + 1) * (this->Extent[5] - this->Extent[4] + 1);
-#endif
-
+    vtkIdType size = (this->sim->bx+2) * (this->sim->by+2);
     vtkarray->SetArray(iterV->second, size, 1);
 
     block->GetPointData()->SetScalars(vtkarray);
@@ -306,11 +263,10 @@ vtkDataObject* JacobiDataAdaptor::GetMesh(bool vtkNotUsed(structure_only))
     int n_ranks = 1;
     MPI_Comm_size(MPI_COMM_WORLD, &n_ranks);
 
-#ifdef RECTILINEAR_MESH
     vtkRectilinearGrid *block = vtkRectilinearGrid::New();
     int dims[3];
-    dims[0] = this->bx+2;
-    dims[1] = this->by+2;
+    dims[0] = this->sim->bx+2;
+    dims[1] = this->sim->by+2;
     dims[2] = 1;
     block->SetDimensions(dims);
 
@@ -318,8 +274,8 @@ vtkDataObject* JacobiDataAdaptor::GetMesh(bool vtkNotUsed(structure_only))
     vtkFloatArray *y = vtkFloatArray::New();
     vtkFloatArray *z = vtkFloatArray::New();
     int dontDelete = 1;
-    x->SetArray(this->cx, this->bx+2, dontDelete);
-    y->SetArray(this->cy, this->by+2, dontDelete);
+    x->SetArray(this->sim->cx, this->sim->bx+2, dontDelete);
+    y->SetArray(this->sim->cy, this->sim->by+2, dontDelete);
     z->SetNumberOfTuples(1);
     z->SetTuple1(0,0.);
     block->SetXCoordinates(x);
@@ -333,18 +289,6 @@ vtkDataObject* JacobiDataAdaptor::GetMesh(bool vtkNotUsed(structure_only))
     this->Mesh->SetBlock(0, block);
 
     block->Delete();
-#else
-    vtkImageData *block = vtkImageData::New();
-    block->SetExtent(this->Extent);
-    block->SetOrigin(this->Origin);
-    block->SetSpacing(this->Spacing);
-
-    this->Mesh = vtkSmartPointer<vtkMultiBlockDataSet>::New();
-    this->Mesh->SetNumberOfBlocks(n_ranks); // ?? n_ranks here
-    this->Mesh->SetBlock(rank, block);
-
-    block->Delete();
-#endif
     }
 
   return this->Mesh;
@@ -367,7 +311,7 @@ bool JacobiDataAdaptor::AddArray(vtkDataObject* mesh, int association, const std
   int rank = 0;
   MPI_Comm_rank(MPI_COMM_WORLD, &rank);
   vtkMultiBlockDataSet *mb = dynamic_cast<vtkMultiBlockDataSet*>(mesh);
-  vtkImageData *block = mb ? dynamic_cast<vtkImageData*>(mb->GetBlock(rank)) : nullptr;
+  vtkRectilinearGrid *block = mb ? dynamic_cast<vtkRectilinearGrid*>(mb->GetBlock(0)) : nullptr;
   if (!block)
     return false;
 
@@ -377,8 +321,7 @@ bool JacobiDataAdaptor::AddArray(vtkDataObject* mesh, int association, const std
     vtkSmartPointer<vtkDoubleArray>& vtkarray = this->Arrays[iterV->first];
     vtkarray = vtkSmartPointer<vtkDoubleArray>::New();
     vtkarray->SetName(name.c_str());
-    vtkIdType size = (this->Extent[1] - this->Extent[0] + 1) *
-      (this->Extent[3] - this->Extent[2] + 1) * (this->Extent[5] - this->Extent[4] + 1);
+    vtkIdType size = (this->sim->bx+2) * (this->sim->by+2);
     vtkarray->SetArray(iterV->second, size, 1);
     block->GetPointData()->SetScalars(vtkarray);
     return true;

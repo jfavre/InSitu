@@ -53,8 +53,8 @@ int main(int argc, char *argv[])
 
   const char *config = argv[1];
 
-  bridge_initialize(MPI_COMM_WORLD, sim.m,
-    sim.rankx, sim.ranky, sim.bx, sim.by, 1, config);
+  bridge_initialize(MPI_COMM_WORLD, &sim, config);/* sim.m,
+    sim.rankx, sim.ranky, sim.bx, sim.by, 1, config);*/
 #endif
 
 
@@ -62,7 +62,7 @@ int main(int argc, char *argv[])
     {  // iterate until error below threshold
     simulate_one_timestep(&sim);
 #ifdef ENABLE_SENSEI
-   bridge_update(sim.iter, sim.iter*1.0, sim.cx, sim.cy, sim.Temp);
+   bridge_update(&sim); /*sim.iter, sim.iter*1.0, sim.cx, sim.cy, sim.Temp);*/
 #endif
     }
 

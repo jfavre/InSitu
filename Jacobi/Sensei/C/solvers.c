@@ -15,7 +15,7 @@ void SimInitialize(simulation_data *sim)
   sim->savingFiles = 0;
   sim->saveCounter = 0;
   sim->batch = 0;
-  sim->export = 0;
+  sim->do_export = 0;
   sim->sessionfile = NULL;
   sim->par_rank = 0;
   sim->par_size = 1;
