@@ -286,34 +286,34 @@ int JacobiDataAdaptor::AddGhostNodesArray(vtkDataObject* mesh, const std::string
   gn->SetName(GHOST_NODE_ARRAY_NAME().c_str());
   unsigned char *gptr = (unsigned char *)gn->GetVoidPointer(0);
   memset(gn->GetVoidPointer(0), 0, nx*nx*sizeof(unsigned char));
-  unsigned char VISIT_GHOSTNODE_BLANK = 2;
+  unsigned char ghost = 1;
   // Left column
   if(this->sim->rankx > 0)
     {
     int i = 0, j = 0;
     for( ; j < ny; ++j)
-        gptr[j*nx+i] = VISIT_GHOSTNODE_BLANK;
+        gptr[j*nx+i] = ghost;
     }
   // Right column
   if(this->sim->rankx < this->sim->cart_dims[0]-1)
     {
     int i = nx-1, j = 0;
     for( ; j < ny; ++j)
-        gptr[j*nx+i] = VISIT_GHOSTNODE_BLANK;
+        gptr[j*nx+i] = ghost;
     }
   // Bottom row
   if(this->sim->ranky > 0)
     {
     int i = 0, j = 0;
     for( ; i < nx; ++i)
-        gptr[j*nx+i] = VISIT_GHOSTNODE_BLANK;
+        gptr[j*nx+i] = ghost;
     }
   // Top row
   if(this->sim->ranky < this->sim->cart_dims[1]-1)
     {
     int i = 0, j = ny-1;
     for( ; i < nx; ++i)
-        gptr[j*nx+i] = VISIT_GHOSTNODE_BLANK;
+        gptr[j*nx+i] = ghost;
     }
   block->GetPointData()->SetScalars(gn);
   gn->Delete();
