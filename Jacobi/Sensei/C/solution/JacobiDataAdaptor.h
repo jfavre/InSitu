@@ -49,6 +49,9 @@ public:
   int GetArrayName(const std::string &meshName, int association,
     unsigned int index, std::string &arrayName) override;
   int ReleaseData() override;
+
+  int GetMeshHasGhostNodes(const std::string &meshName, bool &hasGhostNodes, int &nLayers) override;
+  int AddGhostNodesArray(vtkDataObject* mesh, const std::string &meshName) override;
 #else
   vtkDataObject* GetMesh(bool structure_only=false) override;
   bool AddArray(vtkDataObject* mesh, int association, const std::string& arrayname) override;

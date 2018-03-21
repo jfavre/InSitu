@@ -9,6 +9,7 @@
 #include <vtkPointData.h>
 #include <vtkFloatArray.h>
 #include <vtkRectilinearGrid.h>
+#include <vtkUnsignedCharArray.h>
 
 #include <Error.h>
 #if defined(SENSEI_2)
@@ -34,7 +35,7 @@ JacobiDataAdaptor::~JacobiDataAdaptor()
 }
 
 //-----------------------------------------------------------------------------
-void JacobiDataAdaptor::Initialize(simulation_data *s) //int m, int rankx, int ranky, int bx_, int by_, int ng)
+void JacobiDataAdaptor::Initialize(simulation_data *s)
 {
     this->sim = s;
 }
@@ -239,6 +240,83 @@ int JacobiDataAdaptor::GetArrayName(const std::string &meshName, int association
     ++iter;
 
   arrayName = iter->first;
+
+  return 0;
+}
+
+int JacobiDataAdaptor::GetMeshHasGhostNodes(const std::string &meshName, 
+  bool &hasGhostNodes, int &nLayers)
+{
+  if (meshName != "mesh")
+    {
+    hasGhostNodes = false;
+    nLayers = 0;
+    SENSEI_ERROR("No mesh named " << meshName)
+    return -1;
+    }
+
+  hasGhostNodes = true;
+  nLayers = 1;
+  return 0;
+}
+
+int JacobiDataAdaptor::AddGhostNodesArray(vtkDataObject* mesh, const std::string &meshName)
+{
+  if (meshName != "mesh")
+    {
+    SENSEI_ERROR("No mesh named " << meshName)
+    return -1;
+    }
+
+  vtkMultiBlockDataSet *mb = dynamic_cast<vtkMultiBlockDataSet*>(mesh);
+  if (!mb)
+    {
+    SENSEI_ERROR("Invalid mesh type " << mesh->GetClassName())
+    return -1;
+    }
+
+  vtkRectilinearGrid *block = dynamic_cast<vtkRectilinearGrid*>(mb->GetBlock(0));
+  if (!block)
+    return -1;
+
+  int nx = this->sim->bx+2;
+  int ny = this->sim->by+2;
+  vtkUnsignedCharArray *gn = vtkUnsignedCharArray::New();
+  gn->SetNumberOfTuples(nx*ny);
+  gn->SetName(GHOST_NODE_ARRAY_NAME().c_str());
+  unsigned char *gptr = (unsigned char *)gn->GetVoidPointer(0);
+  memset(gn->GetVoidPointer(0), 0, nx*nx*sizeof(unsigned char));
+  unsigned char VISIT_GHOSTNODE_BLANK = 2;
+  // Left column
+  if(this->sim->rankx > 0)
+    {
+    int i = 0, j = 0;
+    for( ; j < ny; ++j)
+        gptr[j*nx+i] = VISIT_GHOSTNODE_BLANK;
+    }
+  // Right column
+  if(this->sim->rankx < this->sim->cart_dims[0]-1)
+    {
+    int i = nx-1, j = 0;
+    for( ; j < ny; ++j)
+        gptr[j*nx+i] = VISIT_GHOSTNODE_BLANK;
+    }
+  // Bottom row
+  if(this->sim->ranky > 0)
+    {
+    int i = 0, j = 0;
+    for( ; i < nx; ++i)
+        gptr[j*nx+i] = VISIT_GHOSTNODE_BLANK;
+    }
+  // Top row
+  if(this->sim->ranky < this->sim->cart_dims[1]-1)
+    {
+    int i = 0, j = ny-1;
+    for( ; i < nx; ++i)
+        gptr[j*nx+i] = VISIT_GHOSTNODE_BLANK;
+    }
+  block->GetPointData()->SetScalars(gn);
+  gn->Delete();
 
   return 0;
 }
