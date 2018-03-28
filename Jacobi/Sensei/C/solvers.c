@@ -37,7 +37,7 @@ void MPI_Partition(int PartitioningDimension, simulation_data *sim)
     sim->cart_dims[1] = 1;
 
   MPI_Dims_create(sim->par_size, PartitioningDimension, sim->cart_dims);
-  fprintf(stdout,"%d: cart_dims[]= %d, %d\n", sim->par_rank, sim->cart_dims[0], sim->cart_dims[1]);
+  //fprintf(stdout,"%d: cart_dims[]= %d, %d\n", sim->par_rank, sim->cart_dims[0], sim->cart_dims[1]);
 
   if(MPI_Cart_create(MPI_COMM_WORLD, 2, sim->cart_dims, periods, 0, &sim->topocomm) != MPI_SUCCESS)
     sim->topocomm = MPI_COMM_WORLD;
