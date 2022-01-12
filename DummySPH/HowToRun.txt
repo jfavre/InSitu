@@ -1,0 +1,17 @@
+export LD_LIBRARY_PATH=/local/apps/ParaView/5.10/lib:/local/apps/ParaView/5.10/lib/catalyst
+cd buildCatalyst2
+
+0) without catalyst
+
+make && ./bin/dummysph_catalystV2
+
+1) with catalyst
+
+# two extractors have been defined in Python script
+# the default "datasets" folder is created to save extracted data
+
+make && ./bin/dummysph_catalystV2 --catalyst ../catalyst_state.py --pv
+
+2) with catalyst to simply ouput the producer
+
+make && ./bin/dummysph_catalystV2 --pv --output results/datasets-%04ts.vtpd
