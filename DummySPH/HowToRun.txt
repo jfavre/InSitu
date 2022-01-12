@@ -1,3 +1,6 @@
+######## CATALYST2 instrumentation ###################################
+
+# use your installed ParaView
 export LD_LIBRARY_PATH=/local/apps/ParaView/5.10/lib:/local/apps/ParaView/5.10/lib/catalyst
 cd buildCatalyst2
 
@@ -15,3 +18,21 @@ make && ./bin/dummysph_catalystV2 --catalyst ../catalyst_state.py --pv
 2) with catalyst to simply ouput the producer
 
 make && ./bin/dummysph_catalystV2 --pv --output results/datasets-%04ts.vtpd
+
+######## ASCENT instrumentation ###################################
+
+# use your installed ASCENT
+
+cd buildAscent
+mkdir datasets
+
+1) with the default actions defined in the Adaptor
+
+make && ./bin/dummysph_ascent
+# images are created in datasets/image.*png
+
+2) with our own actions defined in ../ascent_actions.json
+
+cp ../ascent_actions.json .
+make && ./bin/dummysph_ascent
+# images are created in datasets/energy.*png
