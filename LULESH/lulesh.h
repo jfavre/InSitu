@@ -31,6 +31,10 @@
 #include <catalyst.h>
 #endif
 
+#if VIZ_ASCENT
+#include <conduit.h>
+#endif
+
 //**************************************************
 // Allow flexibility for arithmetic representations 
 //**************************************************
@@ -630,10 +634,5 @@ void CommMonoQ(Domain& domain);
 // lulesh-init
 void InitMeshDecomp(Int_t numRanks, Int_t myRank,
                     Int_t *col, Int_t *row, Int_t *plane, Int_t *side);
-
-// lulest-catalyst
-void InitializeCatalyst(const cmdLineOpts& opts);
-void ExecuteCatalyst(Domain& locDom);
-void FinalizeCatalyst();
 
 #endif//  lulesh_h

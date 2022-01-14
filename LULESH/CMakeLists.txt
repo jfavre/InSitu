@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.10)
-project(lulesh CXX)
+project(lulesh CXX C)
 set(CMAKE_CXX_STANDARD 11)
 
 include (GNUInstallDirs)
@@ -47,4 +47,9 @@ if(INSITU STREQUAL "Catalyst")
     target_link_libraries(lulesh2.0 PRIVATE catalyst::catalyst)
 elseif(INSITU STREQUAL "Ascent")
     find_package(Ascent REQUIRED PATHS "/apps/daint/UES/Ascent/ascent-install/lib/cmake/ascent")
+    target_compile_definitions(lulesh2.0
+	    PRIVATE
+	    VIZ_ASCENT=1
+	    )
+    target_link_libraries(lulesh2.0 PRIVATE ascent::ascent_mpi)
 endif()

@@ -12,6 +12,8 @@
 #include <cstdlib>
 #include "lulesh.h"
 
+#if defined(VIZ_CATALYST) || defined(VIZ_ASCENT)
+
 template <typename T>
 static void _addField(conduit_node* node, const std::string& name, const char* association, T& field)
 {
@@ -34,6 +36,7 @@ static void _addField(conduit_node* node, const std::string& name, const char* a
   conduit_node_set_path_external_float64_ptr(node, ("fields/" + name + "/values/w").c_str(),
     &fz.front(), fz.size());
 }
+#endif
 
 /////////////////////////////////////////////////////////////////////
 Domain::Domain(Int_t numRanks, Index_t colLoc,
@@ -205,20 +208,20 @@ Domain::Domain(Int_t numRanks, Index_t colLoc,
    deltatime() = (Real_t(.5)*cbrt(volo(0)))/sqrt(Real_t(2.0)*einit);
 
 #if VIZ_CATALYST
-	 m_node = conduit_node_create();
-	 conduit_node_set_path_char8_str(m_node, "coordsets/coords/type", "explicit");
-	 conduit_node_set_path_external_float64_ptr(m_node,
-			 "coordsets/coords/values/x", &m_x.front(), m_x.size());
-	 conduit_node_set_path_external_float64_ptr(m_node,
-			 "coordsets/coords/values/y", &m_y.front(), m_y.size());
-	 conduit_node_set_path_external_float64_ptr(m_node,
-			 "coordsets/coords/values/z", &m_z.front(), m_z.size());
+   m_node = conduit_node_create();
+   conduit_node_set_path_char8_str(m_node, "coordsets/coords/type", "explicit");
+   conduit_node_set_path_external_float64_ptr(m_node,
+		 "coordsets/coords/values/x", &m_x.front(), m_x.size());
+   conduit_node_set_path_external_float64_ptr(m_node,
+		 "coordsets/coords/values/y", &m_y.front(), m_y.size());
+   conduit_node_set_path_external_float64_ptr(m_node,
+		 "coordsets/coords/values/z", &m_z.front(), m_z.size());
 
-	 conduit_node_set_path_char8_str(m_node, "topologies/mesh/type", "structured");
-	 conduit_node_set_path_char8_str(m_node, "topologies/mesh/coordset", "coords");
-	 conduit_node_set_path_int64(m_node, "topologies/mesh/elements/dims/i", nx);
-	 conduit_node_set_path_int64(m_node, "topologies/mesh/elements/dims/j", nx);
-	 conduit_node_set_path_int64(m_node, "topologies/mesh/elements/dims/k", nx);
+   conduit_node_set_path_char8_str(m_node, "topologies/mesh/type", "structured");
+   conduit_node_set_path_char8_str(m_node, "topologies/mesh/coordset", "coords");
+   conduit_node_set_path_int64(m_node, "topologies/mesh/elements/dims/i", nx);
+   conduit_node_set_path_int64(m_node, "topologies/mesh/elements/dims/j", nx);
+   conduit_node_set_path_int64(m_node, "topologies/mesh/elements/dims/k", nx);
 
    _addField(m_node, "e", "element", m_e);
    _addField(m_node, "p", "element", m_p);
@@ -236,7 +239,7 @@ Domain::Domain(Int_t numRanks, Index_t colLoc,
 Domain::~Domain()
 {
 #if VIZ_CATALYST
-	conduit_node_destroy(m_node);
+  conduit_node_destroy(m_node);
 #endif
 }
 
@@ -766,4 +769,3 @@ void InitMeshDecomp(Int_t numRanks, Int_t myRank,
 
    return;
 }
-
