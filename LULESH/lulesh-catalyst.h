@@ -1,10 +1,13 @@
-#if VIZ_CATALYST
+#ifndef CatalystAdaptor_h
+#define CatalystAdaptor_h
 
 #include <catalyst.h>
 #include <lulesh.h>
 #include <sstream>
 #include <iostream>
 
+namespace CatalystAdaptor
+{
 void InitializeCatalyst(const cmdLineOpts& opts)
 {
   std::cout << "CatalystInitialize.........................................\n"; 
@@ -49,18 +52,7 @@ void FinalizeCatalyst()
   std::cout << "CatalystFinalize.........................................\n";
 }
 
-#else
-
-void InitializeCatalyst(const cmdLineOpts& opts)
-{
-}
-
-void ExecuteCatalyst(Domain& locDom)
-{
-}
-
-void FinalizeCatalyst()
-{
 }
 
 #endif
+

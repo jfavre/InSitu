@@ -1,5 +1,5 @@
 
-cd /users/jfavre/Projects/LULESH-catalyst-2.0
+cd /users/jfavre/Projects/LULESH
 
 mkdir buildCatalyst; cd buildCatalyst
 
@@ -7,7 +7,7 @@ mkdir buildCatalyst; cd buildCatalyst
 # Compile and run on my laptop
 
 cmake \
-  -DVIZ_CATALYST=ON \
+  -DINSITU=Catalyst \
   -Dcatalyst_DIR=/local/apps/ParaView/5.10/lib/cmake/paraview-5.10/catalyst \
   ..
 
@@ -35,7 +35,7 @@ make
 module load CMake/3.21.3 daint-mc ParaView
 
 cmake \
-  -DVIZ_CATALYST=ON \
+  -DINSITU=Catalyst \
   -Dcatalyst_DIR=${EBROOTPARAVIEW}/lib/cmake/paraview-5.10/catalyst \
   -DCMAKE_CXX_COMPILER=CC \
   ..
@@ -45,7 +45,7 @@ make
 ##############################################################################
 # Run with a Catalyst script
 
-cd /users/jfavre/Projects/LULESH-catalyst-2.0
+cd /users/jfavre/Projects/LULESH
 sbatch run_lulesh.sh
 
 # What is happening? See the contents of script.py, the ParaView Catalyst script

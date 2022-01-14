@@ -162,6 +162,9 @@ Additional BSD Notice
 
 #include "lulesh.h"
 
+#if VIZ_CATALYST
+#include "lulesh-catalyst.h"
+#endif
 
 /*********************************/
 /* Data structure implementation */
@@ -2742,7 +2745,9 @@ int main(int argc, char *argv[])
    locDom = new Domain(numRanks, col, row, plane, opts.nx,
                        side, opts.numReg, opts.balance, opts.cost) ;
 
-   InitializeCatalyst(opts);
+#if VIZ_CATALYST
+   CatalystAdaptor::InitializeCatalyst(opts);
+#endif
 
 #if USE_MPI   
    fieldData = &Domain::nodalMass ;
@@ -2780,7 +2785,9 @@ int main(int argc, char *argv[])
                 locDom->cycle(), double(locDom->time()), double(locDom->deltatime()) ) ;
       }
 
-	  ExecuteCatalyst(*locDom);
+#if VIZ_CATALYST
+	  CatalystAdaptor::ExecuteCatalyst(*locDom);
+#endif
      }
 
    // Use reduced max elapsed time
@@ -2809,7 +2816,9 @@ int main(int argc, char *argv[])
       VerifyAndWriteFinalOutput(elapsed_timeG, *locDom, opts.nx, numRanks);
    }
 
-	 FinalizeCatalyst();
+#if VIZ_CATALYST
+	 CatalystAdaptor::FinalizeCatalyst();
+#endif
 
 #if USE_MPI
    MPI_Finalize() ;
