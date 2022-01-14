@@ -32,7 +32,7 @@ make
 ##############################################################################
 # Compile and run on Piz Daint
 
-module load CMake/3.21.3 daint-mc ParaView
+module load daint-mc CMake/3.21.3 ParaView
 
 cmake \
   -DINSITU=Catalyst \
