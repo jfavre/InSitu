@@ -165,6 +165,9 @@ Additional BSD Notice
 #if VIZ_CATALYST
 #include "lulesh-catalyst.h"
 #endif
+#if VIZ_ASCENT
+#include "lulesh-ascent.h"
+#endif
 
 /*********************************/
 /* Data structure implementation */

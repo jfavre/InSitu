@@ -426,7 +426,7 @@ class Domain {
    MPI_Request sendRequest[26] ; // 6 faces + 12 edges + 8 corners 
 #endif
 
-#if VIZ_CATALYST
+#if defined(VIZ_CATALYST) || defined(VIZ_ASCENT)
    conduit_node* node() { return m_node; }
 #endif
   private:
@@ -579,10 +579,10 @@ class Domain {
    Index_t m_colMin, m_colMax;
    Index_t m_planeMin, m_planeMax ;
 
-#if VIZ_CATALYST
+#if defined(VIZ_CATALYST) || defined(VIZ_ASCENT)
    conduit_node* m_node;
 #endif
-} ;
+};
 
 typedef Real_t &(Domain::* Domain_member )(Index_t) ;
 

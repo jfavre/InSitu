@@ -207,7 +207,7 @@ Domain::Domain(Int_t numRanks, Index_t colLoc,
    //set initial deltatime base on analytic CFL calculation
    deltatime() = (Real_t(.5)*cbrt(volo(0)))/sqrt(Real_t(2.0)*einit);
 
-#if VIZ_CATALYST
+#if defined(VIZ_CATALYST) || defined(VIZ_ASCENT)
    m_node = conduit_node_create();
    conduit_node_set_path_char8_str(m_node, "coordsets/coords/type", "explicit");
    conduit_node_set_path_external_float64_ptr(m_node,
@@ -238,7 +238,7 @@ Domain::Domain(Int_t numRanks, Index_t colLoc,
 
 Domain::~Domain()
 {
-#if VIZ_CATALYST
+#if defined(VIZ_CATALYST) || defined(VIZ_ASCENT)
   conduit_node_destroy(m_node);
 #endif
 }
