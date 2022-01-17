@@ -2694,7 +2694,7 @@ void LagrangeLeapFrog(Domain& domain)
 
 int main(int argc, char *argv[])
 {
-  Domain *locDom ;
+   Domain *locDom ;
    Int_t numRanks ;
    Int_t myRank ;
    struct cmdLineOpts opts;
@@ -2736,7 +2736,9 @@ int main(int argc, char *argv[])
       printf("To change the relative costs of regions, use -c <integer>.\n");
       printf("To print out progress, use -p\n");
       printf("To write an output file for VisIt, use -v\n");
-			printf("To use a Catalyst script, use -x (requires Catalyst-enabled build)\n");
+#if VIZ_CATALYST
+      printf("To use a Catalyst script, use -x (requires Catalyst-enabled build)\n");
+#endif
       printf("See help (-h) for more options\n\n");
    }
 
@@ -2745,11 +2747,14 @@ int main(int argc, char *argv[])
    InitMeshDecomp(numRanks, myRank, &col, &row, &plane, &side);
 
    // Build the main data structure and initialize it
-   locDom = new Domain(numRanks, col, row, plane, opts.nx,
+   locDom = new Domain(numRanks, myRank, col, row, plane, opts.nx,
                        side, opts.numReg, opts.balance, opts.cost) ;
 
 #if VIZ_CATALYST
    CatalystAdaptor::InitializeCatalyst(opts);
+#endif
+#if VIZ_ASCENT
+   AscentAdaptor::InitializeAscent();
 #endif
 
 #if USE_MPI   
@@ -2791,6 +2796,9 @@ int main(int argc, char *argv[])
 #if VIZ_CATALYST
 	  CatalystAdaptor::ExecuteCatalyst(*locDom);
 #endif
+#if VIZ_ASCENT
+	  AscentAdaptor::ExecuteAscent(*locDom);
+#endif
      }
 
    // Use reduced max elapsed time
@@ -2821,6 +2829,9 @@ int main(int argc, char *argv[])
 
 #if VIZ_CATALYST
 	 CatalystAdaptor::FinalizeCatalyst();
+#endif
+#if VIZ_ASCENT
+	 AscentAdaptor::FinalizeAscent();
 #endif
 
 #if USE_MPI

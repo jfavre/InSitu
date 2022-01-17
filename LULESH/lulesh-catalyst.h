@@ -10,19 +10,19 @@ namespace CatalystAdaptor
 {
 void InitializeCatalyst(const cmdLineOpts& opts)
 {
-  std::cout << "CatalystInitialize.........................................\n"; 
+  std::cout << "CatalystInitialize.........................................\n";
   conduit_node* node = conduit_node_create();
   for (size_t cc=0; cc < opts.scripts.size(); ++cc)
-	{
-	//std::ostringstream str;
-	//str << "catalyst/scripts/script/filename" << cc;
-  	//conduit_node_set_path_char8_str(node, str.str().c_str(), opts.scripts[cc].c_str());
-	conduit_node_set_path_char8_str(node, "catalyst/scripts/script/filename", opts.scripts[cc].c_str());
-	}
+    {
+    //std::ostringstream str;
+    //str << "catalyst/scripts/script/filename" << cc;
+    //conduit_node_set_path_char8_str(node, str.str().c_str(), opts.scripts[cc].c_str());
+    conduit_node_set_path_char8_str(node, "catalyst/scripts/script/filename", opts.scripts[cc].c_str());
+    }
 // indicate that we want to load ParaView-Catalyst
   conduit_node_set_path_char8_str(node, "catalyst_load/implementation", "paraview");
   conduit_node_set_path_char8_str(node, "catalyst_load/search_paths/paraview", PARAVIEW_IMPL_DIR);
-  
+
   catalyst_initialize(node);
 
   conduit_node_destroy(node);

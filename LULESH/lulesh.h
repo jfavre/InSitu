@@ -32,7 +32,7 @@
 #endif
 
 #if VIZ_ASCENT
-#include <conduit.h>
+#include <conduit.hpp>
 #endif
 
 //**************************************************
@@ -140,7 +140,8 @@ class Domain {
    public:
 
    // Constructor
-   Domain(Int_t numRanks, Index_t colLoc,
+   Domain(Int_t numRanks, Int_t myRank,
+          Index_t colLoc,
           Index_t rowLoc, Index_t planeLoc,
           Index_t nx, Int_t tp, Int_t nr, Int_t balance, Int_t cost);
 
@@ -426,8 +427,11 @@ class Domain {
    MPI_Request sendRequest[26] ; // 6 faces + 12 edges + 8 corners 
 #endif
 
-#if defined(VIZ_CATALYST) || defined(VIZ_ASCENT)
-   conduit_node* node() { return m_node; }
+#if defined(VIZ_CATALYST)
+   conduit_node* node() { return m_conduit_node; }
+#endif
+#if VIZ_ASCENT
+   conduit::Node &visitNode() { return m_conduit_node; }
 #endif
   private:
 
@@ -579,8 +583,11 @@ class Domain {
    Index_t m_colMin, m_colMax;
    Index_t m_planeMin, m_planeMax ;
 
-#if defined(VIZ_CATALYST) || defined(VIZ_ASCENT)
-   conduit_node* m_node;
+#if defined(VIZ_CATALYST)
+   conduit_node* m_conduit_node;
+#endif
+#if VIZ_ASCENT
+   conduit::Node m_conduit_node;
 #endif
 };
 

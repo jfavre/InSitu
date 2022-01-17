@@ -12,8 +12,13 @@
 #include <cstdlib>
 #include "lulesh.h"
 
-#if defined(VIZ_CATALYST) || defined(VIZ_ASCENT)
+#if VIZ_ASCENT
+#include "conduit.hpp"
+#include "conduit_blueprint.hpp"
+#include "ascent.hpp"
+#endif
 
+#if defined(VIZ_CATALYST)
 template <typename T>
 static void _addField(conduit_node* node, const std::string& name, const char* association, T& field)
 {
@@ -39,7 +44,7 @@ static void _addField(conduit_node* node, const std::string& name, const char* a
 #endif
 
 /////////////////////////////////////////////////////////////////////
-Domain::Domain(Int_t numRanks, Index_t colLoc,
+Domain::Domain(Int_t numRanks, Int_t myRank, Index_t colLoc,
                Index_t rowLoc, Index_t planeLoc,
                Index_t nx, int tp, int nr, int balance, Int_t cost)
    :
@@ -207,39 +212,124 @@ Domain::Domain(Int_t numRanks, Index_t colLoc,
    //set initial deltatime base on analytic CFL calculation
    deltatime() = (Real_t(.5)*cbrt(volo(0)))/sqrt(Real_t(2.0)*einit);
 
-#if defined(VIZ_CATALYST) || defined(VIZ_ASCENT)
-   m_node = conduit_node_create();
-   conduit_node_set_path_char8_str(m_node, "coordsets/coords/type", "explicit");
-   conduit_node_set_path_external_float64_ptr(m_node,
+#if defined(VIZ_CATALYST)
+   m_conduit_node = conduit_node_create();
+   conduit_node_set_path_char8_str(m_conduit_node, "coordsets/coords/type", "explicit");
+   conduit_node_set_path_external_float64_ptr(m_conduit_node,
 		 "coordsets/coords/values/x", &m_x.front(), m_x.size());
-   conduit_node_set_path_external_float64_ptr(m_node,
+   conduit_node_set_path_external_float64_ptr(m_conduit_node,
 		 "coordsets/coords/values/y", &m_y.front(), m_y.size());
-   conduit_node_set_path_external_float64_ptr(m_node,
+   conduit_node_set_path_external_float64_ptr(m_conduit_node,
 		 "coordsets/coords/values/z", &m_z.front(), m_z.size());
 
-   conduit_node_set_path_char8_str(m_node, "topologies/mesh/type", "structured");
-   conduit_node_set_path_char8_str(m_node, "topologies/mesh/coordset", "coords");
-   conduit_node_set_path_int64(m_node, "topologies/mesh/elements/dims/i", nx);
-   conduit_node_set_path_int64(m_node, "topologies/mesh/elements/dims/j", nx);
-   conduit_node_set_path_int64(m_node, "topologies/mesh/elements/dims/k", nx);
+   conduit_node_set_path_char8_str(m_conduit_node, "topologies/mesh/type", "structured");
+   conduit_node_set_path_char8_str(m_conduit_node, "topologies/mesh/coordset", "coords");
+   conduit_node_set_path_int64(m_conduit_node, "topologies/mesh/elements/dims/i", nx);
+   conduit_node_set_path_int64(m_conduit_node, "topologies/mesh/elements/dims/j", nx);
+   conduit_node_set_path_int64(m_conduit_node, "topologies/mesh/elements/dims/k", nx);
 
-   _addField(m_node, "e", "element", m_e);
-   _addField(m_node, "p", "element", m_p);
-   _addField(m_node, "q", "element", m_q);
-   _addField(m_node, "v", "element", m_v);
-   _addField(m_node, "ss", "element", m_ss);
-   _addField(m_node, "elemMass", "element", m_elemMass);
-   _addField(m_node, "nodalMass", "vertex", m_nodalMass);
-   _addField(m_node, "velocity", "vertex", m_xd, m_yd, m_zd);
-   _addField(m_node, "acceleration", "vertex", m_xdd, m_ydd, m_zdd);
-   _addField(m_node, "force", "vertex", m_fx, m_fy, m_fz);
+   _addField(m_conduit_node, "e", "element", m_e);
+   _addField(m_conduit_node, "p", "element", m_p);
+   _addField(m_conduit_node, "q", "element", m_q);
+   _addField(m_conduit_node, "v", "element", m_v);
+   _addField(m_conduit_node, "ss", "element", m_ss);
+   _addField(m_conduit_node, "elemMass", "element", m_elemMass);
+   _addField(m_conduit_node, "nodalMass", "vertex", m_nodalMass);
+   _addField(m_conduit_node, "velocity", "vertex", m_xd, m_yd, m_zd);
+   _addField(m_conduit_node, "acceleration", "vertex", m_xdd, m_ydd, m_zdd);
+   _addField(m_conduit_node, "force", "vertex", m_fx, m_fy, m_fz);
+#endif
+
+#if VIZ_ASCENT
+/*--------------------------------------------------------------------------
+ *--------------------------------------------------------------------------
+ * Begin Ascent Integration
+ *--------------------------------------------------------------------------
+ *--------------------------------------------------------------------------*/
+
+    //------- begin wrapping with Conduit here -------//
+   {
+      ASCENT_BLOCK_TIMER(COPY_DATA)
+      m_conduit_node["state/time"].set_external(&m_time);
+      m_conduit_node["state/cycle"].set_external(&m_cycle);
+      m_conduit_node["state/domain_id"] = myRank;
+      m_conduit_node["state/software"] = "LULESH 2.0.3";
+      m_conduit_node["state/title"] = "Sedov Blast Simulation";
+      m_conduit_node["state/info"] = "In Situ Pseudocolor rendering of Pressure from <br> LULESH Shock-Hydro Proxy Simulation";
+
+      m_conduit_node["coordsets/coords/type"] = "explicit";
+      m_conduit_node["coordsets/coords/values/x"].set_external(m_x);
+      m_conduit_node["coordsets/coords/values/y"].set_external(m_y);
+      m_conduit_node["coordsets/coords/values/z"].set_external(m_z);
+
+      m_conduit_node["topologies/mesh/type"] = "structured";
+      m_conduit_node["topologies/mesh/coordset"] = "coords";
+
+      m_conduit_node["topologies/mesh/elements/dims/i"] = nx;
+      m_conduit_node["topologies/mesh/elements/dims/j"] = nx;
+      m_conduit_node["topologies/mesh/elements/dims/k"] = nx;
+
+      m_conduit_node["fields/e/association"] = "element";
+      m_conduit_node["fields/e/topology"]    = "mesh";
+      m_conduit_node["fields/e/values"].set_external(m_e);
+
+      m_conduit_node["fields/p/association"] = "element";
+      m_conduit_node["fields/p/topology"]    = "mesh";
+      m_conduit_node["fields/p/values"].set_external(m_p);
+
+      m_conduit_node["fields/v/association"] = "element";
+      m_conduit_node["fields/v/topology"]    = "mesh";
+      m_conduit_node["fields/v/values"].set_external(m_v);
+
+      m_conduit_node["fields/q/association"] = "element";
+      m_conduit_node["fields/q/topology"]    = "mesh";
+      m_conduit_node["fields/q/values"].set_external(m_q);
+
+      m_conduit_node["fields/elem_mass/association"] = "element";
+      m_conduit_node["fields/elem_mass/topology"]    = "mesh";
+      m_conduit_node["fields/elem_mass/values"].set_external(m_elemMass);
+
+      m_conduit_node["fields/velocity/association"] = "vertex";
+      m_conduit_node["fields/velocity/topology"]    = "mesh";
+      m_conduit_node["fields/velocity/values/u"].set_external(m_xd);
+      m_conduit_node["fields/velocity/values/v"].set_external(m_yd);
+      m_conduit_node["fields/velocity/values/w"].set_external(m_zd);
+
+      m_conduit_node["fields/acceleration/association"] = "vertex";
+      m_conduit_node["fields/acceleration/topology"]    = "mesh";
+      m_conduit_node["fields/acceleration/values/u"].set_external(m_xdd);
+      m_conduit_node["fields/acceleration/values/v"].set_external(m_ydd);
+      m_conduit_node["fields/acceleration/values/w"].set_external(m_zdd);
+
+      m_conduit_node["fields/forces/association"] = "vertex";
+      m_conduit_node["fields/forces/topology"]    = "mesh";
+      m_conduit_node["fields/forces/values/u"].set_external(m_fx);
+      m_conduit_node["fields/forces/values/v"].set_external(m_fy);
+      m_conduit_node["fields/forces/values/w"].set_external(m_fz);
+
+      m_conduit_node["fields/nodal_mass/association"] = "vertex";
+      m_conduit_node["fields/nodal_mass/topology"]    = "mesh";
+      m_conduit_node["fields/nodal_mass/values"].set_external(m_nodalMass);
+   }
+    //------- end wrapping with Conduit here -------//
+   conduit::Node verify_info;
+   if(!conduit::blueprint::mesh::verify(m_conduit_node,verify_info))
+   {
+       CONDUIT_INFO("blueprint verify failed!" + verify_info.to_json());
+   }
+
+/*--------------------------------------------------------------------------
+ *--------------------------------------------------------------------------
+ * End Ascent Integration
+ *--------------------------------------------------------------------------
+ *--------------------------------------------------------------------------*/
 #endif
 } // End constructor
 
 Domain::~Domain()
 {
-#if defined(VIZ_CATALYST) || defined(VIZ_ASCENT)
-  conduit_node_destroy(m_node);
+#if defined(VIZ_CATALYST)
+  conduit_node_destroy(m_conduit_node);
 #endif
 }
 
