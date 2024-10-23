@@ -24,30 +24,33 @@ renderView1.OSPRayMaterialLibrary = materialLibrary1
 
 reader = TrivialProducer(registrationName="grid")
 reader.UpdatePipeline()
-print("CATALYST2: ", reader.PointData["rho"].GetRange(0))
+print("CATALYST2: ", reader.PointData["Density1"].GetRange(0))
 
 # show data
 readerDisplay = Show(reader, renderView1, 'GeometryRepresentation')
 readerDisplay.Representation = 'Points'
-ColorBy(readerDisplay, ['POINTS', 'rho'])
+readerDisplay.Representation = 'Point Gaussian'
+ColorBy(readerDisplay, ['POINTS', 'Density1'])
 readerDisplay.PointSize = 2.0
-readerDisplay.GaussianRadius = 0.008953551352024079
+readerDisplay.GaussianRadius = 0.0089535513520240791
 
-rhoLUT = GetColorTransferFunction('rho')
-rhoLUT.AutomaticRescaleRangeMode = "Grow and update every timestep"
+Density = GetColorTransferFunction('Density1')
+Density.AutomaticRescaleRangeMode = "Grow and update every timestep"
 
-rhoLUTColorBar = GetScalarBar(rhoLUT, renderView1)
-rhoLUTColorBar.Title = 'rho'
-rhoLUTColorBar.ComponentTitle = ''
+Density = GetScalarBar(Density, renderView1)
+Density.Title = 'Density1'
+Density.ComponentTitle = ''
 
 # set color bar visibility
-rhoLUTColorBar.Visibility = 1
+Density.Visibility = 1
 
 # show color legend
 readerDisplay.SetScalarBarVisibility(renderView1, True)
 
 # create extractor
-vTU1 = CreateExtractor('VTPD', reader, registrationName='VTU1')
+convertToPointCloud1 = ConvertToPointCloud(registrationName='ConvertToPointCloud1', Input=reader)
+
+vTU1 = CreateExtractor('VTPD', convertToPointCloud1, registrationName='VTU1')
 vTU1.Trigger = 'TimeStep'
 vTU1.Trigger.Frequency = 50
 vTU1.Writer.FileName = 'particles_{timestep:06d}.vtpd'
@@ -59,6 +62,7 @@ pNG1.Trigger.Frequency = 10
 pNG1.Writer.FileName = 'RenderView1_{timestep:06d}{camera}.png'
 pNG1.Writer.ImageResolution = [1024,1024]
 pNG1.Writer.Format = 'PNG'
+
 
 SetActiveSource(reader)
 

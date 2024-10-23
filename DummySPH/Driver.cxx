@@ -14,7 +14,7 @@
 
 int main(int argc, char *argv[])
 {
-  int it=0, Niterations = 100, Nparticles = 1000;
+  int it=0, Niterations = 10, Nparticles = 500;
   MPI_Init(&argc, &argv);
 
   sph::ParticlesData sim;
@@ -39,7 +39,7 @@ int main(int argc, char *argv[])
 #endif
 #ifdef USE_ASCENT
   AscentAdaptor::Execute(sim);
-  std::cout << "Ascent::Execute" << std::endl;
+  //std::cout << "Ascent::Execute" << std::endl;
 #endif
     it++;
     }

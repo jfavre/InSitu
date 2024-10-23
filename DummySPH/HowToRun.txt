@@ -1,14 +1,22 @@
 ######## CATALYST2 instrumentation ###################################
 
 # use your installed ParaView
-export LD_LIBRARY_PATH=/local/apps/ParaView/5.10/lib:/local/apps/ParaView/5.10/lib/catalyst
+
+export LD_LIBRARY_PATH=/local/apps/catalyst-v2.0.0-install/lib/:/local/apps/ParaView/5.13/lib/catalyst
+export CATALYST_IMPLEMENTATION_PATHS=/local/apps/ParaView/5.13/lib/catalyst
+
+export LD_LIBRARY_PATH=/local/apps/catalyst-v2.0.0-install/lib/:/local/apps/ParaView/dev/lib/catalyst
+export CATALYST_IMPLEMENTATION_PATHS=/local/apps/ParaView/dev/lib/catalyst
+
 cd buildCatalyst2
 
-0) without catalyst
+# without catalyst
 
-make && ./bin/dummysph_catalystV2
+make && ./bin/dummysph
 
-1) with catalyst
+# with catalyst
+
+#export CATALYST_IMPLEMENTATION_NAME=paraview  (similar to our flag --pv)
 
 # two extractors have been defined in Python script
 # the default "datasets" folder is created to save extracted data
@@ -19,20 +27,26 @@ make && ./bin/dummysph_catalystV2 --catalyst ../catalyst_state.py --pv
 
 make && ./bin/dummysph_catalystV2 --pv --output results/datasets-%04ts.vtpd
 
+Dumping Conduit nodes:
+export CATALYST_IMPLEMENTATION_PATHS=/local/apps/ParaView/dev/lib/catalyst:/local/apps/catalyst-v2.0.0-install/lib/catalyst
+export CATALYST_IMPLEMENTATION_NAME=stub
+export CATALYST_DATA_DUMP_DIRECTORY=/dev/shm
+
 ######## ASCENT instrumentation ###################################
 
 # use your installed ASCENT
-
+. ~/vtkm.sh
 cd buildAscent
 mkdir datasets
 
-1) with the default actions defined in the Adaptor
+# with the default actions defined in the Adaptor
 
 make && ./bin/dummysph_ascent
 # images are created in datasets/image.*png
 
-2) with our own actions defined in ../ascent_actions.json
+# with our own actions defined in ../ascent_actions.json
 
 cp ../ascent_actions.json .
+cp ../binning_actions.yaml .
 make && ./bin/dummysph_ascent
 # images are created in datasets/energy.*png

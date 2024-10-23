@@ -1,15 +1,12 @@
-mkdir buildCatalyst2
-cd    buildCatalyst2
-       
-ccmake -DINSITU=Catalyst \
-       -Dcatalyst_DIR=/local/apps/ParaView/5.10/lib/cmake/paraview-5.10/catalyst \
-       ..
 
-cd ..
+cmake -B buildCatalyst2 -S . \
+       -DINSITU=Catalyst \
+       -Dcatalyst_DIR=/local/apps/catalyst-v2.0.0-install/lib/cmake/catalyst-2.0
+cmake --build buildCatalyst2
 
-mkdir buildAscent
-cd    buildAscent
-ccmake -DINSITU=Ascent \
-       -DAscent_DIR=/local/apps/ascent/install/lib/cmake/ascent \
-       ..
+
+cmake -B buildAscent -S . \
+      -DINSITU=Ascent \
+      -DAscent_DIR=/local/apps/Ascent/install/ascent-develop/lib/cmake/ascent
+cmake --build buildAscent
 
