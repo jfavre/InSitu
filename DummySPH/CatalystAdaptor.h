@@ -44,8 +44,7 @@ void Initialize(int argc, char* argv[])
     else if (strcmp(argv[cc], "--pv") == 0)
     {
       node["catalyst_load/implementation"].set_string("paraview");
-      // node["catalyst_load/search_paths/paraview"] = PARAVIEW_IMPL_DIR; //legacy before 5.11
-      std::cout << "Loading ParaView implementation\n";
+      //std::cout << "Loading ParaView implementation\n";
     }
     else if (strcmp(argv[cc], "--catalyst") == 0 && (cc + 1) < argc)
     {
@@ -65,19 +64,38 @@ void Initialize(int argc, char* argv[])
 }
 
 template<typename T>
-void addField(conduit_cpp::Node& mesh, const std::string& name, std::vector<T> &field)
+void addField(conduit_cpp::Node& mesh, const std::string& name, T* field, const size_t N)
 {
     mesh["fields/" + name + "/association"] = "vertex";
     mesh["fields/" + name + "/topology"]    = "mesh";
-    mesh["fields/" + name + "/values"].set_external(field);
+    mesh["fields/" + name + "/values"].set_external(field, N);
     mesh["fields/" + name + "/volume_dependent"].set("false");
 }
+
+template<typename T>
+void addStridedField(conduit_cpp::Node& mesh,
+                     const std::string& name,
+                     T* field,
+                     const size_t N,  /* num_elements */
+                     const int offset,
+                     const int stride)
+{
+    mesh["fields/" + name + "/association"] = "vertex";
+    mesh["fields/" + name + "/topology"]    = "mesh";
+    mesh["fields/" + name + "/values"].set_external_float64_ptr(field,
+                                                                N,
+                                                                offset * sizeof(T),
+                                                                stride * sizeof(T),
+                                                                sizeof(T) /* element_bytes */,
+                                                                0 /* endianness */);
+    mesh["fields/" + name + "/volume_dependent"].set("false");
+}
+                    
 
 void Execute(sph::ParticlesData& sim)
 {
   conduit_cpp::Node exec_params;
 
-  // add time/cycle information
   auto state = exec_params["catalyst/state"];
   state["timestep"].set(sim.iteration);
   state["time"].set(sim.iteration*0.1);
@@ -99,45 +117,25 @@ void Execute(sph::ParticlesData& sim)
   mesh["coordsets/coords/values/y"].set_external(sim.y);
   mesh["coordsets/coords/values/z"].set_external(sim.z);
 
-#define IMPLICIT_POINTS_SUPPORTED 1
-#ifdef IMPLICIT_POINTS_SUPPORTED
   mesh["topologies/mesh/type"] = "points";
-#else
-  mesh["topologies/mesh/type"] = "unstructured";
-  std::vector<int> conn(sim.n);
-  std::iota(conn.begin(), conn.end(), 0);
-  // use a deep-copy here otherwise the HDF5 output is corrupted. ??
-  mesh["topologies/mesh/elements/connectivity"].set(conn);
-  mesh["topologies/mesh/elements/shape"] = "point";
-#endif
-
   mesh["topologies/mesh/coordset"].set("coords");
  
   // Finally, add fields.
   auto fields = mesh["fields"];
   
 #ifdef STRIDED_SCALARS
-  fields["Densities/association"].set("vertex");
-  fields["Densities/topology"].set("mesh");
-  fields["Densities/volume_dependent"].set("false");
-  
-  fields["Densities/values/x"].set_external(&sim.scalars[0],
-                                                     sim.n /* num_elements */,
-                                                     0 * sizeof(double), sim.NbofScalarfields * sizeof(double));
-  fields["Densities/values/y"].set_external(&sim.scalars[0],
-                                                     sim.n /* num_elements */,
-                                                     1 * sizeof(double), sim.NbofScalarfields * sizeof(double));
-  fields["Densities/values/z"].set_external(&sim.scalars[0],
-                                                     sim.n /* num_elements */,
-                                                     2 * sizeof(double), sim.NbofScalarfields * sizeof(double));
-#else 
-  addField(mesh, "Density1", sim.scalar1);
-  addField(mesh, "Density2", sim.scalar2);
-  addField(mesh, "Density3", sim.scalar3);
+  addStridedField(mesh, "Density",  sim.scalar.data(), sim.n, 0, sim.NbofScalarfields);
+  addStridedField(mesh, "Density2", sim.scalar.data(), sim.n, 1, sim.NbofScalarfields);
+  addStridedField(mesh, "Density3", sim.scalar.data(), sim.n, 2, sim.NbofScalarfields);
+#else
+  addField(mesh, "Density",  sim.scalar1.data(), sim.n);
+  addField(mesh, "Density2", sim.scalar2.data(), sim.n);
+  addField(mesh, "Density3", sim.scalar3.data(), sim.n);
 #endif
-  addField(mesh, "x", sim.x);
-  addField(mesh, "y", sim.y);
-  addField(mesh, "z", sim.z);
+
+  addField(mesh, "x", sim.x.data(), sim.n);
+  addField(mesh, "y", sim.y.data(), sim.n);
+  addField(mesh, "z", sim.z.data(), sim.n);
 
   conduit_cpp::Node verify_info;
   if (!conduit_blueprint_verify("mesh", conduit_cpp::c_node(&mesh), conduit_cpp::c_node(&verify_info)))
@@ -149,7 +147,8 @@ void Execute(sph::ParticlesData& sim)
   {
     std::cerr << "ERROR: Failed to execute Catalyst: " << err << std::endl;
   }
-  mesh.print();
+  //if(sim.iteration == 1)
+    //mesh.print();
 }
 
 void Finalize()

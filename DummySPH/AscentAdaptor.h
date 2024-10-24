@@ -44,7 +44,7 @@ void addStridedField(conduit::Node& mesh,
                                                                 0 /* endianness */);
     mesh["fields/" + name + "/volume_dependent"].set("false");
 }
-                                                     
+                            
 void Initialize(int argc, char* argv[], sph::ParticlesData& sim)
 {
   conduit::Node n;
@@ -151,7 +151,7 @@ void Finalize()
   conduit::Node &extracts = add_act["extracts"];
   extracts["e1/type"] = "relay";
   extracts["e1/params/path"] = "mesh";
-  extracts["e1/params/protocol"] = "blueprint/mesh/hdf5";
+  extracts["e1/params/protocol"] = "hdf5";
 
   ascent.publish(mesh);
   ascent.execute(save_data_actions);

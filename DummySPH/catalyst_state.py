@@ -8,75 +8,73 @@ paraview.simple._DisableFirstRenderCameraReset()
 
 materialLibrary1 = GetMaterialLibrary()
 
+reader = TrivialProducer(registrationName="grid")
+
 # Create a new 'Render View'
 renderView1 = GetRenderView()
-renderView1.ViewSize = [1024,1024]
+renderView1.ViewSize = [1024, 1024]
 renderView1.AxesGrid = 'GridAxes3DActor'
-renderView1.CenterOfRotation = [0.001128894224791066, -0.0020283135665234986, 0.5]
+renderView1.CenterOfRotation = [1.7854218337487884, 1.6179981242178436, 0.5]
 renderView1.StereoType = 'Crystal Eyes'
-renderView1.CameraPosition = [1.7845801111775557, -2.260516154412631, 3.863955224443597]
-renderView1.CameraFocalPoint = [-0.6493301399169188, 0.7854990371566732, -0.33923807171894244]
-renderView1.CameraViewUp = [-0.1279227782157158, 0.7664098080910214, 0.6294853206195175]
+renderView1.CameraPosition = [2.700054437669351, -5.66312674799613, 5.671826340627948]
+renderView1.CameraFocalPoint = [1.5056973030635852, 3.844803979388578, -1.081713454906686]
+renderView1.CameraViewUp = [-0.06090498968028826, 0.5729163265620065, 0.8173478237511497]
 renderView1.CameraFocalDisk = 1.0
-renderView1.CameraParallelScale = 1.4838473389620004
+renderView1.CameraParallelScale = 3.0342328780921157
 renderView1.BackEnd = 'OSPRay raycaster'
 renderView1.OSPRayMaterialLibrary = materialLibrary1
 
-reader = TrivialProducer(registrationName="grid")
-reader.UpdatePipeline()
-print("CATALYST2: ", reader.PointData["Density1"].GetRange(0))
+outline1 = Outline(registrationName='Outline1', Input=reader)
+outline1Display = Show(outline1)
 
-# show data
+"""
 readerDisplay = Show(reader, renderView1, 'GeometryRepresentation')
-readerDisplay.Representation = 'Points'
 readerDisplay.Representation = 'Point Gaussian'
-ColorBy(readerDisplay, ['POINTS', 'Density1'])
+ColorBy(readerDisplay, ['POINTS', 'Density'])
 readerDisplay.PointSize = 2.0
-readerDisplay.GaussianRadius = 0.0089535513520240791
+readerDisplay.GaussianRadius = 0.009
 
-Density = GetColorTransferFunction('Density1')
-Density.AutomaticRescaleRangeMode = "Grow and update every timestep"
+DensityLUT = GetColorTransferFunction('Density')
+DensityLUT.ApplyPreset('Inferno (matplotlib)', True)
+DensityLUT.AutomaticRescaleRangeMode = "Grow and update every timestep"
+readerDisplay.PointSize = 2.0
 
-Density = GetScalarBar(Density, renderView1)
-Density.Title = 'Density1'
-Density.ComponentTitle = ''
-
-# set color bar visibility
-Density.Visibility = 1
-
-# show color legend
+DensityLUTColorBar = GetScalarBar(DensityLUT, renderView1)
+DensityLUTColorBar.Title = 'Density'
+DensityLUTColorBar.ComponentTitle = ''
+DensityLUTColorBar.Visibility = 1
 readerDisplay.SetScalarBarVisibility(renderView1, True)
+"""
 
-# create extractor
 convertToPointCloud1 = ConvertToPointCloud(registrationName='ConvertToPointCloud1', Input=reader)
+convertToPointCloud1.CellGenerationMode = 'Polyvertex cell'
 
-vTU1 = CreateExtractor('VTPD', convertToPointCloud1, registrationName='VTU1')
-vTU1.Trigger = 'TimeStep'
-vTU1.Trigger.Frequency = 50
-vTU1.Writer.FileName = 'particles_{timestep:06d}.vtpd'
+processIds1 = ProcessIds(registrationName='ProcessIds1', Input=convertToPointCloud1)
 
-# create extractor
+processIds1Display = Show(processIds1, renderView1, 'GeometryRepresentation')
+ColorBy(processIds1Display, ['POINTS', 'PointProcessIds'])
+processIdLUT = GetColorTransferFunction('PointProcessIds')
+processIdLUT.InterpretValuesAsCategories = 1
+processIdLUT.AnnotationsInitialized = 1
+processIdLUT.AutomaticRescaleRangeMode = 'Never'
+processIdLUT.RescaleTransferFunction(0, 3)
+#convertToPointCloud1Display = Show(convertToPointCloud1, renderView1, 'GeometryRepresentation')
+#convertToPointCloud1Display.Representation = 'Surface'
 pNG1 = CreateExtractor('PNG', renderView1, registrationName='PNG1')
 pNG1.Trigger = 'TimeStep'
-pNG1.Trigger.Frequency = 10
+pNG1.Trigger.Frequency = 1
 pNG1.Writer.FileName = 'RenderView1_{timestep:06d}{camera}.png'
-pNG1.Writer.ImageResolution = [1024,1024]
+pNG1.Writer.ImageResolution = [1024, 1024]
 pNG1.Writer.Format = 'PNG'
 
+vTP1 = CreateExtractor('VTPD', convertToPointCloud1, registrationName='VTPD1')
+vTP1.Trigger = 'TimeStep'
+vTP1.Trigger.Frequency = 10
+vTP1.Writer.FileName = 'dataset_{timestep:06d}.vtpd'
 
-SetActiveSource(reader)
-
-# ------------------------------------------------------------------------------
 # Catalyst options
 from paraview import catalyst
 options = catalyst.Options()
 options.GlobalTrigger = 'TimeStep'
 options.EnableCatalystLive = 1
 options.CatalystLiveTrigger = 'TimeStep'
-
-# ------------------------------------------------------------------------------
-if __name__ == '__main__':
-    from paraview.simple import SaveExtractsUsingCatalystOptions
-    # Code for non in-situ environments; if executing in post-processing
-    # i.e. non-Catalyst mode, let's generate extracts using Catalyst options
-    SaveExtractsUsingCatalystOptions(options)
