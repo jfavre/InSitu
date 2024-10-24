@@ -30,13 +30,13 @@ void AllocateGridMemory(ParticlesData &sim, int N)
   sim.scalar3.resize(N);
 #endif
   srand(1234+sim.par_rank);
-
+  //std::cerr << "adding offset for coordinates " << sim.par_rank << std::endl;
   for (auto i=0; i < N; i++)
     {
     float t = ((float)i) / ((float)(N-1));
     float a = 3.14159 * .05 * t;
-    sim.x[i] = 1 * cos(a + (0.5 + 0.5 * t) * sim.angle);
-    sim.y[i] = 1 * sin(a + (0.5 + 0.5 * t) * sim.angle);
+    sim.x[i] = sim.par_rank + 1 * cos(a + (0.5 + 0.5 * t) * sim.angle);
+    sim.y[i] = sim.par_rank + 1 * sin(a + (0.5 + 0.5 * t) * sim.angle);
     sim.z[i] = t;
 #ifdef STRIDED_SCALARS
     sim.scalars[sim.NbofScalarfields*i] = sqrt(sim.x[i]*sim.x[i] + /* rho is equal to radius */
@@ -70,8 +70,8 @@ void simulate_one_timestep(ParticlesData &sim)
     {
     float t = ((float)i) / ((float)(sim.n-1));
     float a = 3.14159 * 1. * t;
-    sim.x[i] = t*cos(a + (0.5 + 0.5 * t) * sim.angle);
-    sim.y[i] = t*sin(a + (0.5 + 0.5 * t) * sim.angle);
+    sim.x[i] = sim.par_rank + t*cos(a + (0.5 + 0.5 * t) * sim.angle);
+    sim.y[i] = sim.par_rank + t*sin(a + (0.5 + 0.5 * t) * sim.angle);
     sim.z[i] = t;
 #ifdef STRIDED_SCALARS
     sim.scalars[sim.NbofScalarfields*i] = 2.0*3.141592*(sqrt(sim.x[i]*sim.x[i] +

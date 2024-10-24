@@ -13,22 +13,51 @@
 
 namespace AscentAdaptor
 {
-  ascent::Ascent a;
+  ascent::Ascent ascent;
   conduit::Node mesh;
   conduit::Node actions;
-        
+
+template<typename T>
+void addField(conduit::Node& mesh, const std::string& name, T* field, const size_t N)
+{
+    mesh["fields/" + name + "/association"] = "vertex";
+    mesh["fields/" + name + "/topology"]    = "mesh";
+    mesh["fields/" + name + "/values"].set_external(field, N);
+    mesh["fields/" + name + "/volume_dependent"].set("false");
+}
+
+template<typename T>
+void addStridedField(conduit::Node& mesh,
+                     const std::string& name,
+                     T* field,
+                     const size_t N,  /* num_elements */
+                     const int offset,
+                     const int stride)
+{
+    mesh["fields/" + name + "/association"] = "vertex";
+    mesh["fields/" + name + "/topology"]    = "mesh";
+    mesh["fields/" + name + "/values"].set_external_float64_ptr(field,
+                                                                N,
+                                                                offset * sizeof(T),
+                                                                stride * sizeof(T),
+                                                                sizeof(T) /* element_bytes */,
+                                                                0 /* endianness */);
+    mesh["fields/" + name + "/volume_dependent"].set("false");
+}
+                                                     
 void Initialize(int argc, char* argv[], sph::ParticlesData& sim)
 {
+  conduit::Node n;
+  ascent::about(n);
+  
   conduit::Node ascent_options;
   ascent_options["default_dir"] = "/users/jfavre/Projects/InSitu/DummySPH/buildAscent/datasets";
-#if USE_MPI
-  ascent_opts["mpi_comm"] = MPI_Comm_c2f(MPI_COMM_WORLD);
-#endif
-  a.open(ascent_options);
+  ascent_options["mpi_comm"] = MPI_Comm_c2f(MPI_COMM_WORLD);
+  ascent.open(ascent_options);
 
   mesh["state/cycle"].set_external(&sim.iteration);
   mesh["state/time"].set_external(&sim.time);
-  
+  mesh["state/domain_id"].set_external(&sim.par_rank);
   conduit::Node verify_info;
    
   std::cout << "time: " << sim.iteration*0.1 << " cycle: " << sim.iteration << std::endl;
@@ -37,72 +66,23 @@ void Initialize(int argc, char* argv[], sph::ParticlesData& sim)
   mesh["coordsets/coords/values/x"].set_external(sim.x);
   mesh["coordsets/coords/values/y"].set_external(sim.y);
   mesh["coordsets/coords/values/z"].set_external(sim.z);
-#define IMPLICIT_POINTS_SUPPORTED 1
-#ifdef IMPLICIT_POINTS_SUPPORTED
+
   mesh["topologies/mesh/type"] = "points";
-#else
-  mesh["topologies/mesh/type"] = "unstructured";
-  
-  std::vector<int> conn(sim.n);
-  std::iota(conn.begin(), conn.end(), 0);
-  // use a deep-copy here otherwise the HDF5 output is corrupted. ??
-  mesh["topologies/mesh/elements/connectivity"].set(conn);
-  mesh["topologies/mesh/elements/shape"] = "point";
-#endif
-
   mesh["topologies/mesh/coordset"] = "coords";
-
-  mesh["fields/Density1/association"] = "vertex";
-  mesh["fields/Density1/topology"] = "mesh";
-  mesh["fields/Density1/volume_dependent"].set("false");
-  
-  mesh["fields/Density2/association"] = "vertex";
-  mesh["fields/Density2/topology"] = "mesh";
-  mesh["fields/Density2/volume_dependent"].set("false");
-    
-  mesh["fields/Density3/association"] = "vertex";
-  mesh["fields/Density3/topology"] = "mesh";
-  mesh["fields/Density3/volume_dependent"].set("false");
   
 #ifdef STRIDED_SCALARS
-  mesh["fields/Density1/values"].set_external_float64_ptr(&sim.scalars[0],
-                                                     sim.n /* num_elements */,
-                                                     0 * sizeof(conduit_float64) /* offset */,
-                                                     sim.NbofScalarfields * sizeof(conduit_float64) /* stride*/,
-                                                     sizeof(conduit_float64) /* element_bytes */,
-                                                     0 /* endianness */);
-  
-  mesh["fields/Density2/values"].set_external_float64_ptr(&sim.scalars[0],
-                                                     sim.n /* num_elements */,
-                                                     1 * sizeof(conduit_float64) /* offset */,
-                                                     sim.NbofScalarfields * sizeof(conduit_float64) /* stride*/,
-                                                     sizeof(conduit_float64) /* element_bytes */,
-                                                     0 /* endianness */);
-  mesh["fields/Density3/values"].set_external_float64_ptr(&sim.scalars[0],
-                                                     sim.n /* num_elements */,
-                                                     2 * sizeof(conduit_float64) /* offset */,
-                                                     sim.NbofScalarfields * sizeof(conduit_float64) /* stride*/,
-                                                     sizeof(conduit_float64) /* element_bytes */,
-                                                     0 /* endianness */);
+  addStridedField(mesh, "Density",  sim.scalar.data(), sim.n, 0, sim.NbofScalarfields);
+  addStridedField(mesh, "Density2", sim.scalar.data(), sim.n, 1, sim.NbofScalarfields);
+  addStridedField(mesh, "Density3", sim.scalar.data(), sim.n, 2, sim.NbofScalarfields);
 #else
-  mesh["fields/Density1/values"].set_external(sim.scalar1);
-  mesh["fields/Density2/values"].set_external(sim.scalar2);
-  mesh["fields/Density3/values"].set_external(sim.scalar3);
+  addField(mesh, "Density",  sim.scalar1.data(), sim.n);
+  addField(mesh, "Density2", sim.scalar2.data(), sim.n);
+  addField(mesh, "Density3", sim.scalar3.data(), sim.n);
 #endif
 
-
-  mesh["fields/x/association"] = "vertex";
-  mesh["fields/x/topology"]    = "mesh";
-  mesh["fields/x/values"].set_external(sim.x);
-  mesh["fields/x/volume_dependent"].set("false");
-  mesh["fields/y/association"] = "vertex";
-  mesh["fields/y/topology"]    = "mesh";
-  mesh["fields/y/values"].set_external(sim.y);
-  mesh["fields/y/volume_dependent"].set("false");
-  mesh["fields/z/association"] = "vertex";
-  mesh["fields/z/topology"]    = "mesh";
-  mesh["fields/z/values"].set_external(sim.z);
-  mesh["fields/z/volume_dependent"].set("false");
+  addField(mesh, "x", sim.x.data(), sim.n);
+  addField(mesh, "y", sim.y.data(), sim.n);
+  addField(mesh, "z", sim.z.data(), sim.n);
 
   if(!conduit::blueprint::mesh::verify(mesh,verify_info))
   {
@@ -121,37 +101,46 @@ void Initialize(int argc, char* argv[], sph::ParticlesData& sim)
 // declare a scene (s1) and pseudocolor plot (p1)
   conduit::Node &scenes = add_act["scenes"];
   scenes["s1/plots/p1/type"] = "pseudocolor";
-  scenes["s1/plots/p1/field"] = "Density1";
+#define RANKS
+#ifdef RANKS
+  scenes["s1/plots/p1/field"] = "ranks";
+  scenes["s1/plots/p1/pipeline"] = "pl1";
+  scenes["s1/plots/p1/color_table/discrete"] = "true";
+#else
+  scenes["s1/plots/p1/field"] = "Density";
+#endif
   scenes["s1/plots/p1/points/radius"] = .005;
   scenes["s1/plots/p1/points/radius_delta"] = .01;
   scenes["s1/renders/r1/image_prefix"] = "image.%05d";
   scenes["s1/renders/r1/annotations"] = "true";
   double vec3[3];
-  vec3[0] = 0.0; vec3[1] = -0.0; vec3[2] = 0.0;
+  vec3[0] = (sim.par_size-1.0)/2; vec3[1] = (sim.par_size-1.0)/2; vec3[2] = 0.0;
   scenes["s1/renders/r1/camera/look_at"].set_float64_ptr(vec3,3);
-  vec3[0] = 0.0; vec3[1] = -0; vec3[2] = 10;
+  vec3[0] = (sim.par_size-1.0)/2; vec3[1] = (sim.par_size-1.0)/2; vec3[2] = 10;
   scenes["s1/renders/r1/camera/position"].set_float64_ptr(vec3,3);
   vec3[0] = 0.0; vec3[1] = 1; vec3[2] = 0.0;
   scenes["s1/renders/r1/camera/up"].set_float64_ptr(vec3,3);
-  scenes["s1/renders/r1/camera/zoom"] = 5;
-  scenes["s1/renders/r1/image_width"] = 512;
-  scenes["s1/renders/r1/image_height"] = 512;
-  double dset_bounds[6] = {-1.0, 1.0, -1.0, 1.0, 0.0, 1.};
+  scenes["s1/renders/r1/camera/zoom"] = 5.0/sim.par_size;
+  scenes["s1/renders/r1/image_width"] = 1024;
+  scenes["s1/renders/r1/image_height"] = 1024;
+  double dset_bounds[6] = {-1.0, 1.0 * sim.par_size, -1.0, 1.0 * sim.par_size, 0.0, 1.};
   scenes["s1/renders/r1/dataset_bounds"].set_float64_ptr(dset_bounds, 6);
-   /*
-  scenes["s1/renders/r1/type"] = "cinema";
-  scenes["s1/renders/r1/phi"] = 8;
-  scenes["s1/renders/r1/theta"] = 8;
-  scenes["s1/renders/r1/db_name"] = "example_db";
-  */
-  
 
+  conduit::Node pipelines;
+  pipelines["pl1/f1/type"] = "add_mpi_ranks";
+  conduit::Node &params = pipelines["pl1/f1/params"];
+  params["topology"] = "mesh";
+  params["output"] = "ranks";
+
+  conduit::Node &add_pipelines = actions.append();
+  add_pipelines["action"] = "add_pipelines";
+  add_pipelines["pipelines"] = pipelines;
 }
 
 void Execute(sph::ParticlesData& sim)
 {
-  a.publish(mesh);
-  a.execute(actions);
+  ascent.publish(mesh);
+  ascent.execute(actions);
 }
 
 void Finalize()
@@ -164,9 +153,9 @@ void Finalize()
   extracts["e1/params/path"] = "mesh";
   extracts["e1/params/protocol"] = "blueprint/mesh/hdf5";
 
-  a.publish(mesh);
-  a.execute(save_data_actions);
-  a.close();
+  ascent.publish(mesh);
+  ascent.execute(save_data_actions);
+  ascent.close();
 }
 
 }

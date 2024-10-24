@@ -16,7 +16,7 @@ int main(int argc, char *argv[])
 {
   int it=0, Niterations = 10, Nparticles = 500;
   MPI_Init(&argc, &argv);
-
+    
   sph::ParticlesData sim;
   sph::AllocateGridMemory(sim, Nparticles);
 

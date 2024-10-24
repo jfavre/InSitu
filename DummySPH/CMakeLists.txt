@@ -50,6 +50,6 @@ elseif(INSITU STREQUAL "Ascent")
   if(STRIDED_SCALARS)
   target_compile_definitions(dummysph_ascent PRIVATE STRIDED_SCALARS=1)
 endif()
-  target_link_libraries(dummysph_ascent MPI::MPI_C MPI::MPI_CXX ascent::ascent)
+  target_link_libraries(dummysph_ascent MPI::MPI_C MPI::MPI_CXX ascent::ascent_mpi)
 endif()
 
