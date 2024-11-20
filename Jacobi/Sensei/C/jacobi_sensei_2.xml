@@ -10,12 +10,13 @@
 
   <!-- CATALYST -->
   <analysis type="catalyst" pipeline="pythonscript"
-    filename="jacobi_catalyst_sensei_2.py" enabled="1" />
+    filename="jacobi_catalyst_sensei_2.py" enabled="0" />
 
   <!-- LIBSIM -->
-  <analysis type="libsim" plots="Pseudocolor,Mesh" plotvars="temperature,mesh"
+  <analysis type="libsim" visitdir="/Users/bjw/Development/MAIN/trunk/install" mode="interactive,paused" options="-debug 5 -clobber_vlogs" trace="trace"
+    plots="Pseudocolor,Mesh" plotvars="temperature,mesh" 
     image-filename="jacobi_%ts" image-width="800" image-height="800"
-    slice-project="1" image-format="png" enabled="0"/>
+    slice-project="1" image-format="png" enabled="1"/>
 
   <!-- ADIOS -->
   <analysis type="adios" filename="jacobi.bp" method="MPI" enabled="0" />
