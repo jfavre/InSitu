@@ -1,9 +1,6 @@
 #ifndef CatalystAdaptor_h
 #define CatalystAdaptor_h
 
-#include "solvers.h"
-#include <catalyst.hpp>
-#include <conduit_blueprint.h>
 #include <cstring>
 #include <fstream>
 #include <iostream>
@@ -91,14 +88,14 @@ void addStridedField(conduit_cpp::Node& mesh,
     mesh["fields/" + name + "/volume_dependent"].set("false");
 }
                     
-
-void Execute(sph::ParticlesData& sim)
+template<typename T>
+void Execute(sph::ParticlesData<T> *sim)
 {
   conduit_cpp::Node exec_params;
 
   auto state = exec_params["catalyst/state"];
-  state["timestep"].set(sim.iteration);
-  state["time"].set(sim.iteration*0.1);
+  state["timestep"].set(sim->iteration);
+  state["time"].set(sim->iteration*0.1);
 
   // Add channels.
   // We only have 1 channel here. Let's name it 'grid'.
@@ -113,9 +110,9 @@ void Execute(sph::ParticlesData& sim)
 
   // start with coordsets
   mesh["coordsets/coords/type"].set("explicit");
-  mesh["coordsets/coords/values/x"].set_external(sim.x);
-  mesh["coordsets/coords/values/y"].set_external(sim.y);
-  mesh["coordsets/coords/values/z"].set_external(sim.z);
+  mesh["coordsets/coords/values/x"].set_external(sim->x);
+  mesh["coordsets/coords/values/y"].set_external(sim->y);
+  mesh["coordsets/coords/values/z"].set_external(sim->z);
 
   mesh["topologies/mesh/type"] = "points";
   mesh["topologies/mesh/coordset"].set("coords");
@@ -124,18 +121,18 @@ void Execute(sph::ParticlesData& sim)
   auto fields = mesh["fields"];
   
 #ifdef STRIDED_SCALARS
-  addStridedField(mesh, "Density",  sim.scalar.data(), sim.n, 0, sim.NbofScalarfields);
-  addStridedField(mesh, "Density2", sim.scalar.data(), sim.n, 1, sim.NbofScalarfields);
-  addStridedField(mesh, "Density3", sim.scalar.data(), sim.n, 2, sim.NbofScalarfields);
+  addStridedField(mesh, "Density",  sim->scalar.data(), sim->n, 0, sim->NbofScalarfields);
+  addStridedField(mesh, "Density2", sim->scalar.data(), sim->n, 1, sim->NbofScalarfields);
+  addStridedField(mesh, "Density3", sim->scalar.data(), sim->n, 2, sim->NbofScalarfields);
 #else
-  addField(mesh, "Density",  sim.scalar1.data(), sim.n);
-  addField(mesh, "Density2", sim.scalar2.data(), sim.n);
-  addField(mesh, "Density3", sim.scalar3.data(), sim.n);
+  addField(mesh, "Density",  sim->scalar1.data(), sim->n);
+  addField(mesh, "Density2", sim->scalar2.data(), sim->n);
+  addField(mesh, "Density3", sim->scalar3.data(), sim->n);
 #endif
 
-  addField(mesh, "x", sim.x.data(), sim.n);
-  addField(mesh, "y", sim.y.data(), sim.n);
-  addField(mesh, "z", sim.z.data(), sim.n);
+  addField(mesh, "x", sim->x.data(), sim->n);
+  addField(mesh, "y", sim->y.data(), sim->n);
+  addField(mesh, "z", sim->z.data(), sim->n);
 
   conduit_cpp::Node verify_info;
   if (!conduit_blueprint_verify("mesh", conduit_cpp::c_node(&mesh), conduit_cpp::c_node(&verify_info)))
@@ -147,7 +144,7 @@ void Execute(sph::ParticlesData& sim)
   {
     std::cerr << "ERROR: Failed to execute Catalyst: " << err << std::endl;
   }
-  //if(sim.iteration == 1)
+  //if(sim->iteration == 1)
     //mesh.print();
 }
 

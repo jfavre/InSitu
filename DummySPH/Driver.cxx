@@ -1,59 +1,53 @@
+/*
+We currently have 3 different APIs for in-situ visualization
+
+0) Catalyst
+cd buildCatalyst2
+make && ./bin/dummysph_catalystV2  --pv --catalyst ../catalyst_state.py
+
+1) Ascent
+cd buildAscent
+make && ./bin/dummysph_ascent (# reads the ascent_actions.yaml present in current directory)
+
+2) VTK-m
+cd buildVTKm
+make && ./bin/dummysph_vtkm
+
+
+Written by Jean M. Favre, Swiss National Supercomputing Center
+Tested Mon  9 Dec 13:50:37 CET 2024
+*/
 
 #include <mpi.h> 
+#include <sstream>
 
-#include "solvers.h"
+#include "insitu_viz.h"
 
-#ifdef USE_CATALYST
-#include "CatalystAdaptor.h"
-#endif
-
-#ifdef USE_ASCENT
-#include <ascent/ascent.hpp>
-#include "AscentAdaptor.h"
-#endif
+using namespace sph;
 
 int main(int argc, char *argv[])
 {
-  int it=0, Niterations = 10, Nparticles = 500;
+  int it = 0, Niterations = 100, Nparticles = 25;
+  int frequency = 10;
   MPI_Init(&argc, &argv);
     
-  sph::ParticlesData sim;
-  sph::AllocateGridMemory(sim, Nparticles);
+  ParticlesData<float> *sim = new(ParticlesData<float>);
+  sim->AllocateGridMemory(Nparticles);
 
-#ifdef USE_CATALYST
-  CatalystAdaptor::Initialize(argc, argv);
-  std::cout << "Catalyst::Initialize" << std::endl;
-#endif
-#ifdef USE_ASCENT
-  //std::cout << ascent::about() << std::endl;
-  AscentAdaptor::Initialize(argc, argv, sim);
-  std::cout << "Ascent::Initialize" << std::endl;
-#endif
+  viz::init_catalyst(argc, argv);
+  viz::init_ascent(sim);
+  viz::init_vtkm(argc, argv, sim);
 
   while (it < Niterations)
     {
-    sph::simulate_one_timestep(sim);
-
-#ifdef USE_CATALYST
-    CatalystAdaptor::Execute(sim);
-#endif
-#ifdef USE_ASCENT
-  AscentAdaptor::Execute(sim);
-  //std::cout << "Ascent::Execute" << std::endl;
-#endif
+    sim->simulate_one_timestep();
+    viz::execute(sim, it, frequency);
     it++;
     }
 
-#ifdef USE_CATALYST
-  CatalystAdaptor::Finalize();
-  std::cout << "Catalyst::Finalize" << std::endl;
-#endif
-#ifdef USE_ASCENT
-  AscentAdaptor::Finalize();
-  std::cout << "Ascent::Finalize" << std::endl;
-#endif
+  viz::finalize();
 
-  sph::FreeGridMemory(sim);
+  sim->FreeGridMemory();
 
   MPI_Finalize();
 

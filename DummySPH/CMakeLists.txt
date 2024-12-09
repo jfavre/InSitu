@@ -19,7 +19,6 @@ if (NOT MPI_FOUND)
 endif ()
 
 set(C_SRCS
-solvers.cxx
 Driver.cxx
 )
 
@@ -29,7 +28,7 @@ target_link_libraries(dummysph PRIVATE MPI::MPI_C MPI::MPI_CXX m)
 option(STRIDED_SCALARS "Use interleaved scalar arrays") 
 
 set(INSITU None CACHE STRING "Enable in-situ support")
-set_property(CACHE INSITU PROPERTY STRINGS None Catalyst Ascent)
+set_property(CACHE INSITU PROPERTY STRINGS None Catalyst Ascent VTK-m)
 
 if(INSITU STREQUAL "Catalyst")
   find_package(catalyst REQUIRED PATHS "/local/apps/ParaView/")
@@ -42,14 +41,25 @@ if(STRIDED_SCALARS)
   target_compile_definitions(dummysph_catalystV2 PRIVATE STRIDED_SCALARS=1)
 endif()
   target_link_libraries(dummysph_catalystV2 PRIVATE MPI::MPI_C MPI::MPI_CXX m catalyst::catalyst)
+
 elseif(INSITU STREQUAL "Ascent")
   find_package(Ascent REQUIRED PATHS "/local/apps/ascent/install/lib/cmake/ascent")
 
   add_executable(dummysph_ascent ${C_SRCS})
   target_compile_definitions(dummysph_ascent PRIVATE USE_ASCENT=1)
-  if(STRIDED_SCALARS)
+if(STRIDED_SCALARS)
   target_compile_definitions(dummysph_ascent PRIVATE STRIDED_SCALARS=1)
 endif()
   target_link_libraries(dummysph_ascent MPI::MPI_C MPI::MPI_CXX ascent::ascent_mpi)
+
+elseif(INSITU STREQUAL "VTK-m")
+  find_package(VTKm REQUIRED QUIET)
+
+  add_executable(dummysph_vtkm ${C_SRCS})
+  target_compile_definitions(dummysph_vtkm PRIVATE USE_VTKM=1)
+if(STRIDED_SCALARS)
+  target_compile_definitions(dummysph_vtkm PRIVATE STRIDED_SCALARS=1)
+endif()
+  target_link_libraries(dummysph_vtkm MPI::MPI_C MPI::MPI_CXX vtkm::io vtkm::rendering)
 endif()
 
