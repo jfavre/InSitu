@@ -24,6 +24,9 @@ Driver.cxx
 
 add_executable(dummysph ${C_SRCS})
 target_link_libraries(dummysph PRIVATE MPI::MPI_C MPI::MPI_CXX m)
+if(STRIDED_SCALARS)
+  target_compile_definitions(dummysph PRIVATE STRIDED_SCALARS=1)
+endif()
 
 option(STRIDED_SCALARS "Use interleaved scalar arrays") 
 

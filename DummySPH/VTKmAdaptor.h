@@ -4,6 +4,8 @@
 #include <vtkm/cont/ColorTable.h>
 #include <vtkm/cont/DataSet.h>
 #include <vtkm/cont/DataSetBuilderExplicit.h>
+#include <vtkm/cont/ArrayHandleExtractComponent.h>
+#include <vtkm/cont/ArrayHandleStride.h>
 #include <vtkm/cont/Initialize.h>
 #include <vtkm/io/VTKDataSetWriter.h>
 #include <vtkm/rendering/Actor.h>
@@ -66,9 +68,35 @@ void Initialize(int argc, char* argv[], sph::ParticlesData<T> *sim)
                                                       connectivity);
   */
 
-  auto dataArray = vtkm::cont::make_ArrayHandle(sim->scalar1, vtkm::CopyFlag::Off);
-  dataSet.AddPointField("Density", dataArray);
+#ifdef STRIDED_SCALARS
+  // NOTE: In this case, the num_vals, needs to be
+  // the full extent of the strided area, thus sim->n*sim->NbofScalarfields
+  std::cout << "creating fields with strided access\n";
+  auto ScalarsArray = vtkm::cont::make_ArrayHandle<T>(sim->scalars.data(), sim->n*sim->NbofScalarfields, vtkm::CopyFlag::Off);
+  vtkm::cont::ArrayHandleStride<T> dataArray1(ScalarsArray, sim->n, 3, 0);
+  dataSet.AddPointField("Density", dataArray1);
+  
+  vtkm::cont::ArrayHandleStride<T> dataArray2(ScalarsArray, sim->n, 3, 1);
+  dataSet.AddPointField("Pressure", dataArray2);
+  
+  vtkm::cont::ArrayHandleStride<T> dataArray3(ScalarsArray, sim->n, 3, 2);
+  dataSet.AddPointField("cst-field", dataArray3);
+#else
+  std::cout << "creating fields with independent (stride=1) access\n";
+//https://vtk-m.readthedocs.io/en/stable/basic-array-handles.html#ex-arrayhandlefromvector
+  auto dataArray1 = vtkm::cont::make_ArrayHandle(sim->scalar1, vtkm::CopyFlag::Off);
+  dataSet.AddPointField("Density", dataArray1);
+  
+  auto dataArray2 = vtkm::cont::make_ArrayHandle(sim->scalar2, vtkm::CopyFlag::Off);
+  dataSet.AddPointField("Pressure", dataArray2);
+  
+  auto dataArray3 = vtkm::cont::make_ArrayHandle(sim->scalar3, vtkm::CopyFlag::Off);
+  dataSet.AddPointField("cst-field", dataArray3);
+#endif
 
+  
+
+  
     //Creating Actor
   vtkm::cont::ColorTable colorTable("viridis");
   vtkm::rendering::Actor actor(dataSet.GetCellSet(),
@@ -87,6 +115,7 @@ void Initialize(int argc, char* argv[], sph::ParticlesData<T> *sim)
 
 void Execute(int it, int frequency)
 {
+/*
   std::ostringstream fname;
   if(it % frequency == 0)
     {
@@ -97,6 +126,7 @@ void Execute(int it, int frequency)
     view.Paint();
     view.SaveAs(fname.str());
     }
+    */
 }
 
 void Finalize()

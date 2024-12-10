@@ -26,13 +26,13 @@ class ParticlesData
     std::vector<T> x, y, z;         // Positions
     std::vector<T> vx, vy, vz;      // Velocities
 #ifdef STRIDED_SCALARS
-    std::vector<T> scalars;         // NbofScalarfields interleaved scalars
+    std::vector<T> scalars;         // struct of interleaved scalars {"Density", "Pressure", "cst-field"}
 #else
-    std::vector<T> scalar1;         // density
-    std::vector<T> scalar2;         // mass
-    std::vector<T> scalar3;         // pressure
+    std::vector<T> scalar1;         // Density
+    std::vector<T> scalar2;         // Pressure
+    std::vector<T> scalar3;         // "cst-field"
 #endif
-    int NbofScalarfields = 3;
+    static constexpr int NbofScalarfields = 3;
     
     void AllocateGridMemory(int N)
     {
@@ -58,12 +58,12 @@ class ParticlesData
     //std::cerr << "adding offset for coordinates " << sim.par_rank << std::endl;
     int id=0;
     for (auto iz=0; iz < N; iz++) {
-      float zz = -1.0 + 2.0*iz/(N - 1.0);
+      float zz = -1.0f + 2.0f*iz/(N - 1.0f);
       for (auto iy=0; iy < N; iy++){
-        float yy = -1.0 + 2.0*iy/(N - 1.0);
+        float yy = -1.0f + 2.0f*iy/(N - 1.0f);
         for (auto ix=0; ix < N; ix++)
           {
-          this->x[id] = -1.0 + 2.0*ix/(N - 1.0);
+          this->x[id] = -1.0f + 2.0f*ix/(N - 1.0);
           this->y[id] = yy;
           this->z[id] = zz;
           id++;
@@ -119,9 +119,9 @@ class ParticlesData
                  this->y[i]*(this->y[i]+this->time) +
                  this->z[i]*(this->z[i]+this->time));
 #ifdef STRIDED_SCALARS
-      sim.scalars[this->NbofScalarfields*i] = R;
-      sim.scalars[this->NbofScalarfields*i + 1] = sqrt(R);
-      sim.scalars[this->NbofScalarfields*i + 2] = 10000;
+      this->scalars[this->NbofScalarfields*i] = R;
+      this->scalars[this->NbofScalarfields*i + 1] = sqrt(R);
+      //this->scalars[this->NbofScalarfields*i + 2] = 10000;
 #else
       this->scalar1[i] = R;
       this->scalar2[i] = sqrt(R);
