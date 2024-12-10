@@ -31,7 +31,7 @@ int main(int argc, char *argv[])
   int frequency = 10;
   MPI_Init(&argc, &argv);
     
-  ParticlesData<float> *sim = new(ParticlesData<float>);
+  ParticlesData<double> *sim = new(ParticlesData<double>);
   sim->AllocateGridMemory(Nparticles);
 
   viz::init_catalyst(argc, argv);

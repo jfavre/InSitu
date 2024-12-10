@@ -76,13 +76,13 @@ void Initialize(sph::ParticlesData<T> *sim)
 #endif
   
 #ifdef STRIDED_SCALARS
-  addStridedField(mesh, "Density",  sim->scalar.data(), sim->n, 0, sim->NbofScalarfields);
-  addStridedField(mesh, "Density2", sim->scalar.data(), sim->n, 1, sim->NbofScalarfields);
-  addStridedField(mesh, "Density3", sim->scalar.data(), sim->n, 2, sim->NbofScalarfields);
+  addStridedField(mesh, "Density",  sim->scalars.data(), sim->n, 0, sim->NbofScalarfields);
+  addStridedField(mesh, "Pressure", sim->scalars.data(), sim->n, 1, sim->NbofScalarfields);
+  addStridedField(mesh, "cst-field", sim->scalars.data(), sim->n, 2, sim->NbofScalarfields);
 #else
   addField(mesh, "Density",  sim->scalar1.data(), sim->n);
-  addField(mesh, "Density2", sim->scalar2.data(), sim->n);
-  addField(mesh, "Density3", sim->scalar3.data(), sim->n);
+  addField(mesh, "Pressure", sim->scalar2.data(), sim->n);
+  addField(mesh, "cst-field", sim->scalar3.data(), sim->n);
 #endif
 
   addField(mesh, "vx", sim->vx.data(), sim->n);
