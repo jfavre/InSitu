@@ -22,7 +22,6 @@ class ParticlesData
     int                 iteration;       // Current iteration
     double              time;
     size_t              n;               // Number of particles
-    float               angle;
     std::vector<T> x, y, z;         // Positions
     std::vector<T> vx, vy, vz;      // Velocities
 #ifdef STRIDED_SCALARS
@@ -40,7 +39,6 @@ class ParticlesData
     MPI_Comm_size(MPI_COMM_WORLD, &this->par_size);
     this->n = N*N*N;
     this->iteration = 0;
-    this->angle = 0.0;
     this->x.resize(this->n);
     this->y.resize(this->n);
     this->z.resize(this->n);
@@ -58,9 +56,9 @@ class ParticlesData
     //std::cerr << "adding offset for coordinates " << sim.par_rank << std::endl;
     int id=0;
     for (auto iz=0; iz < N; iz++) {
-      float zz = -1.0f + 2.0f*iz/(N - 1.0f);
+      T zz = -1.0f + 2.0f*iz/(N - 1.0f);
       for (auto iy=0; iy < N; iy++){
-        float yy = -1.0f + 2.0f*iy/(N - 1.0f);
+        T yy = -1.0f + 2.0f*iy/(N - 1.0f);
         for (auto ix=0; ix < N; ix++)
           {
           this->x[id] = -1.0f + 2.0f*ix/(N - 1.0);
@@ -73,7 +71,7 @@ class ParticlesData
 
     for (size_t i=0; i < this->n; i++)
       {
-      float R = (this->x[i]*this->x[i] + /* rho is equal to radius_square */
+      T R = (this->x[i]*this->x[i] + /* rho is equal to radius_square */
                  this->y[i]*this->y[i] +
                  this->z[i]*this->z[i]);
 #ifdef STRIDED_SCALARS
@@ -115,7 +113,7 @@ class ParticlesData
     this->time = this->iteration * 0.01; // fixed, arbitrary timestep value
     for (size_t i=0; i < this->n; i++)
       {
-      float R = (this->x[i]*(this->x[i]+this->time) + /* rho is equal to radius_square */
+      T R = (this->x[i]*(this->x[i]+this->time) + /* rho is equal to radius_square */
                  this->y[i]*(this->y[i]+this->time) +
                  this->z[i]*(this->z[i]+this->time));
 #ifdef STRIDED_SCALARS

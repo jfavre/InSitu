@@ -10,7 +10,12 @@
 #include <vtkm/io/VTKDataSetWriter.h>
 #include <vtkm/rendering/Actor.h>
 #include <vtkm/rendering/CanvasRayTracer.h>
+
 #include <vtkm/rendering/MapperPoint.h>
+#include <vtkm/rendering/MapperRayTracer.h>
+#include <vtkm/rendering/MapperWireframer.h>
+#include <vtkm/rendering/MapperGlyphScalar.h>
+
 #include <vtkm/rendering/Scene.h>
 #include <vtkm/rendering/View3D.h>
 
@@ -18,8 +23,10 @@ namespace VTKmAdaptor
 {
   vtkm::rendering::CanvasRayTracer canvas(1080, 1080);
   vtkm::rendering::Scene           scene;
-  vtkm::rendering::MapperPoint     mapper;
-
+  vtkm::rendering::MapperPoint       mapper0; // rendering crash
+  vtkm::rendering::MapperRayTracer   mapper1; // no rendering erros but empty output 
+  vtkm::rendering::MapperWireframer  mapper2; // rendering errors out, creates empty images
+  vtkm::rendering::MapperGlyphScalar mapper3; // rendering crash
   vtkm::cont::DataSet              dataSet;
   std::vector<vtkm::Id>            connectivity;
 
@@ -30,11 +37,8 @@ void Initialize(int argc, char* argv[], sph::ParticlesData<T> *sim)
   vtkm::cont::Initialize(argc, argv);
 
   vtkm::cont::DataSetBuilderExplicit dataSetBuilder;
-  /*
-  const std::vector<vtkm::UInt8> shapes(sim->n, vtkm::CELL_SHAPE_VERTEX);
-  const std::vector<vtkm::IdComponent> numIndices(sim->n, 1);
-  */
-  connectivity.resize(sim->n);
+
+  connectivity.resize(sim->n); 
   std::iota(connectivity.begin(), connectivity.end(), 0);
   
   vtkm::cont::ArrayHandle<vtkm::Vec3f> coordsArray;
@@ -48,9 +52,10 @@ void Initialize(int argc, char* argv[], sph::ParticlesData<T> *sim)
                                     static_cast<vtkm::FloatDefault>(sim->z[index])));
   }
   auto connArray = vtkm::cont::make_ArrayHandle(connectivity, vtkm::CopyFlag::Off);
+  vtkm::IdComponent numberOfPointsPerCell = 1;
   dataSet = dataSetBuilder.Create(coordsArray, // use template line 230
                                                       vtkm::CellShapeTagVertex(),
-                                                      static_cast<vtkm::IdComponent>(1),
+                                                      numberOfPointsPerCell,
                                                       connArray, "coords");
  /**/
  /*
@@ -94,6 +99,7 @@ void Initialize(int argc, char* argv[], sph::ParticlesData<T> *sim)
   dataSet.AddPointField("cst-field", dataArray3);
 #endif
 
+  dataSet.PrintSummary(std::cout);
   
 
   
@@ -101,32 +107,32 @@ void Initialize(int argc, char* argv[], sph::ParticlesData<T> *sim)
   vtkm::cont::ColorTable colorTable("viridis");
   vtkm::rendering::Actor actor(dataSet.GetCellSet(),
                                dataSet.GetCoordinateSystem(),
-                               dataSet.GetField("Density"),
+                               dataSet.GetField("Pressure"),
                                colorTable);
 
   // Adding Actor to the scene
   scene.AddActor(actor);
-
-  mapper.SetUsePoints();
-  mapper.SetRadius(0.02f);
-  mapper.UseVariableRadius(true);
-  mapper.SetRadiusDelta(0.05f);
+/*
+  mapper0.SetUsePoints();
+  mapper0.SetRadius(0.02f);
+  mapper0.UseVariableRadius(false);
+  mapper0.SetRadiusDelta(0.05f);
+  */
 }
 
 void Execute(int it, int frequency)
 {
-/*
+
   std::ostringstream fname;
   if(it % frequency == 0)
     {
     fname << "insitu." << it << ".png";
-    vtkm::rendering::View3D view(scene, mapper, canvas);
+    vtkm::rendering::View3D view(scene, mapper3, canvas);
     view.SetBackgroundColor(vtkm::rendering::Color(1.0f, 1.0f, 1.0f));
     view.SetForegroundColor(vtkm::rendering::Color(0.0f, 0.0f, 0.0f));
     view.Paint();
     view.SaveAs(fname.str());
     }
-    */
 }
 
 void Finalize()
