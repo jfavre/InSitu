@@ -1,0 +1,158 @@
+# dealing with vector fields
+# 1) composite independent vector components into a 3-tuple vector
+#    vx, vy, vz are presented to conduit as scalars
+# 2) extracting a component from a 3-tuple vector
+#    "velocity" is presented to conduit as a vector
+# 3) any other variation and combo can be tested to see how strided access work
+-
+  action: "add_pipelines"
+  pipelines:
+    pl_extract_vx_component:
+      f1:
+        type: "vector_component"
+        params:
+          field: "velocity"
+          component: 0
+          output_name: "velocity_0"
+    pl_composite_velocity:
+      f1:
+        type: "composite_vector"
+        params:
+          field1: "vx"
+          field2: "vy"
+          field3: "vz"
+          output_name: "velocity_composed"
+    pl_velocity_magnitude:
+      f1:
+        type: "vector_magnitude"
+        params:
+          field: "velocity"
+          output_name: "velocity_magnitude"
+    pl_threshold_coords_x:
+      f1:
+        type: "vector_component"
+        params:
+          field: "coords"
+          component: 0
+          output_name: "coords_x"
+      f2:
+        type: "threshold"
+        params:
+          field: "coords_x"
+          min_value: 0.0
+          max_value: 10.0
+    pl_geometric_clip: 
+      f1: 
+        type: "clip"
+        params: 
+          invert: "true" # "false" removes all particles in the negative zone of "normal"
+          plane: 
+            point: 
+              x: 0.0
+              y: 0.0
+              z: 0.0
+            normal: 
+              x: 0.0
+              y: 0.0
+              z: 1.0
+          #sphere: 
+            #radius: 1.2
+            #center: 
+              #x: 0.0
+              #y: 0.0
+              #z: 0.0
+    pl_clip_with_Scalar: 
+      f2: 
+        type: "clip_with_field"
+        params: 
+          field: "Density"
+          clip_value: 1.0
+          invert: "true" # false means remove below clip_value
+-
+  action: "add_scenes"
+  scenes:
+    s1:
+      plots:
+        p1:
+          type: "pseudocolor"
+          field: "velocity_0"
+          pipeline: "pl_extract_vx_component"
+          points:
+            radius: 0.01
+      renders:
+        r1:
+          image_width: 1024
+          image_height: 1024
+          image_prefix: "datasets/velocity_0.%05d"
+          camera:
+            azimuth: 30
+            elevation: 30
+          dataset_bounds: [-1.0, 1.0, -1.0, 1.0, -1.0, 1.0]
+    s2:
+      plots:
+        p1:
+          type: "pseudocolor"
+          field: "velocity_magnitude"
+          pipeline: "pl_velocity_magnitude"
+          points:
+            radius: 0.01
+      renders:
+        r1:
+          image_width: 1024
+          image_height: 1024
+          image_prefix: "datasets/velocity_magnitude.%05d"
+          camera:
+            azimuth: 30
+            elevation: 30
+          dataset_bounds: [-1.0, 1.0, -1.0, 1.0, -1.0, 1.0]
+    s3:
+      plots:
+        p1:
+          type: "pseudocolor"
+          field: "coords_x"
+          pipeline: "pl_threshold_coords_x"
+          points:
+            radius: 0.01
+      renders:
+        r1:
+          image_width: 1024
+          image_height: 1024
+          image_prefix: "datasets/threshold.%05d"
+          camera:
+            azimuth: 30
+            elevation: 30
+          dataset_bounds: [-1.0, 1.0, -1.0, 1.0, -1.0, 1.0]
+    s4:
+      plots:
+        p1:
+          type: "pseudocolor"
+          field: "Density"
+          pipeline: "pl_geometric_clip"
+          points:
+            radius: 0.01
+      renders:
+        r1:
+          image_width: 1024
+          image_height: 1024
+          image_prefix: "datasets/geometric_clip.%05d"
+          camera:
+            azimuth: 30
+            elevation: 30
+          dataset_bounds: [-1.0, 1.0, -1.0, 1.0, -1.0, 1.0]
+    s5:
+      plots:
+        p1:
+          type: "pseudocolor"
+          field: "Density"
+          pipeline: "pl_clip_with_Scalar"
+          points:
+            radius: 0.01
+      renders:
+        r1:
+          image_width: 1024
+          image_height: 1024
+          image_prefix: "datasets/scalar_clip.%05d"
+          camera:
+            azimuth: 30
+            elevation: 30
+          dataset_bounds: [-1.0, 1.0, -1.0, 1.0, -1.0, 1.0]
