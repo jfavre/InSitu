@@ -50,10 +50,28 @@ void Initialize(sph::ParticlesData<T> *sim)
 {
   conduit::Node n;
   ascent::about(n);
+  // only run this test if ascent was built with vtkm support
+  if(n["runtimes/ascent/vtkm/status"].as_string() == "disabled")
+  {
+    ASCENT_INFO("Ascent vtkm support disabled, skipping test");
+    return;
+  }
+  
+  std::string output_path = "datasets";
+  ASCENT_INFO("Creating output folder: " + output_path);
+  if(!conduit::utils::is_directory(output_path))
+  {
+    conduit::utils::create_directory(output_path);
+  }
+  // remove old images before rendering
+
 
   conduit::Node ascent_options;
   ascent_options["default_dir"] = "./datasets";
   ascent_options["mpi_comm"] = MPI_Comm_c2f(MPI_COMM_WORLD);
+  ascent_options["ascent_info"] = "verbose";
+  ascent_options["exceptions"] = "forward";
+
   ascent.open(ascent_options);
 
   mesh["state/cycle"].set_external(&sim->iteration);
@@ -76,9 +94,9 @@ void Initialize(sph::ParticlesData<T> *sim)
 #endif
   
 #ifdef STRIDED_SCALARS
-  addStridedField(mesh, "Density",  sim->scalars.data(), sim->n, 0, sim->NbofScalarfields);
-  addStridedField(mesh, "Pressure", sim->scalars.data(), sim->n, 1, sim->NbofScalarfields);
-  addStridedField(mesh, "cst-field", sim->scalars.data(), sim->n, 2, sim->NbofScalarfields);
+  addStridedField(mesh, "Density",  &sim->scalarsAOS[0].density, sim->n, 0, sim->NbofScalarfields);
+  addStridedField(mesh, "Pressure", &sim->scalarsAOS[0].pressure, sim->n, 0, sim->NbofScalarfields);
+  addStridedField(mesh, "cst-field", &sim->scalarsAOS[0].cstfield, sim->n, 0, sim->NbofScalarfields);
 #else
   addField(mesh, "Density",  sim->scalar1.data(), sim->n);
   addField(mesh, "Pressure", sim->scalar2.data(), sim->n);
@@ -106,7 +124,7 @@ void Initialize(sph::ParticlesData<T> *sim)
   {
     CONDUIT_INFO("blueprint verify failed!" + verify_info.to_json());
   }
-
+  mesh.print();
 // Create an action that tells Ascent to:
 //  add a scene (s1) with one plot (p1)
 //  that will render a pseudocolor of 

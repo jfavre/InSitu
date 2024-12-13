@@ -25,13 +25,20 @@ class ParticlesData
     std::vector<T> x, y, z;         // Positions
     std::vector<T> vx, vy, vz;      // Velocities
 #ifdef STRIDED_SCALARS
-    std::vector<T> scalars;         // struct of interleaved scalars {"Density", "Pressure", "cst-field"}
+    struct uvw
+    {
+      T density;
+      T pressure;
+      T cstfield;
+    };
+    std::vector<uvw> scalarsAOS;
 #else
     std::vector<T> scalar1;         // Density
     std::vector<T> scalar2;         // Pressure
     std::vector<T> scalar3;         // "cst-field"
 #endif
     static constexpr int NbofScalarfields = 3;
+    static constexpr T value = 0.12345;
     
     void AllocateGridMemory(int N)
     {
@@ -46,7 +53,7 @@ class ParticlesData
     this->vy.resize(this->n);
     this->vz.resize(this->n);
 #ifdef STRIDED_SCALARS
-    this->scalars.resize(this->NbofScalarfields * this->n);
+    this->scalarsAOS.resize(this->n);
 #else
     this->scalar1.resize(this->n);
     this->scalar2.resize(this->n);
@@ -75,13 +82,13 @@ class ParticlesData
                  this->y[i]*this->y[i] +
                  this->z[i]*this->z[i]);
 #ifdef STRIDED_SCALARS
-      this->scalars[this->NbofScalarfields*i] = R;
-      this->scalars[this->NbofScalarfields*i + 1] = sqrt(R);
-      this->scalars[this->NbofScalarfields*i + 2] = 10000;
+      this->scalarsAOS[i].density = R;
+      this->scalarsAOS[i].pressure = sqrt(R);
+      this->scalarsAOS[i].cstfield = value;
 #else
       this->scalar1[i] = R;
       this->scalar2[i] = sqrt(R);
-      this->scalar3[i] = 10000;
+      this->scalar3[i] = value;
 #endif
       this->vx[i] = R;
       this->vy[i] = rand()/(float)RAND_MAX;
@@ -99,7 +106,7 @@ class ParticlesData
     this->vy.clear();
     this->vz.clear();
 #ifdef STRIDED_SCALARS
-    this->scalars.clear();
+    this->scalarsAOS.clear();
 #else
     this->scalar1.clear();
     this->scalar2.clear();
@@ -114,25 +121,21 @@ class ParticlesData
     for (size_t i=0; i < this->n; i++)
       {
       T R = (this->x[i]*(this->x[i]+this->time) + /* rho is equal to radius_square */
-                 this->y[i]*(this->y[i]+this->time) +
-                 this->z[i]*(this->z[i]+this->time));
+             this->y[i]*(this->y[i]+this->time) +
+             this->z[i]*(this->z[i]+this->time));
 #ifdef STRIDED_SCALARS
-      this->scalars[this->NbofScalarfields*i] = R;
-      this->scalars[this->NbofScalarfields*i + 1] = sqrt(R);
-      //this->scalars[this->NbofScalarfields*i + 2] = 10000;
+      this->scalarsAOS[i].density = R;
+      this->scalarsAOS[i].pressure = sqrt(R);
+      this->scalarsAOS[i].cstfield = value;
 #else
       this->scalar1[i] = R;
       this->scalar2[i] = sqrt(R);
 #endif
       }
 
-#ifdef STRIDED_SCALARS
-    auto minmax = std::minmax_element(this->scalars.begin(), this->scalars.end());
-#else
+#ifndef STRIDED_SCALARS
     auto minmax = std::minmax_element(this->scalar1.begin(), this->scalar1.end());
 #endif
-  //std::cerr << this->time << ": " << *minmax.first << " << density << " << *minmax.second << std::endl;
-
     };
 };
 }

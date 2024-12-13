@@ -24,7 +24,7 @@ namespace VTKmAdaptor
   vtkm::rendering::CanvasRayTracer canvas(1080, 1080);
   vtkm::rendering::Scene           scene;
   vtkm::rendering::MapperPoint       mapper0; // rendering crash
-  vtkm::rendering::MapperRayTracer   mapper1; // no rendering erros but empty output 
+  vtkm::rendering::MapperRayTracer   mapper1; // no rendering errors but empty output 
   vtkm::rendering::MapperWireframer  mapper2; // rendering errors out, creates empty images
   vtkm::rendering::MapperGlyphScalar mapper3; // rendering crash
   vtkm::cont::DataSet              dataSet;
@@ -77,15 +77,16 @@ void Initialize(int argc, char* argv[], sph::ParticlesData<T> *sim)
   // NOTE: In this case, the num_vals, needs to be
   // the full extent of the strided area, thus sim->n*sim->NbofScalarfields
   std::cout << "creating fields with strided access\n";
-  auto ScalarsArray = vtkm::cont::make_ArrayHandle<T>(sim->scalars.data(), sim->n*sim->NbofScalarfields, vtkm::CopyFlag::Off);
-  vtkm::cont::ArrayHandleStride<T> dataArray1(ScalarsArray, sim->n, 3, 0);
-  dataSet.AddPointField("Density", dataArray1);
+  auto AOS = vtkm::cont::make_ArrayHandle<T>(&sim->scalarsAOS[0].density, sim->n*sim->NbofScalarfields, vtkm::CopyFlag::Off);
+
+  vtkm::cont::ArrayHandleStride<T> aos1(AOS, sim->n, 3, 0);
+  dataSet.AddPointField("Density", aos1);
   
-  vtkm::cont::ArrayHandleStride<T> dataArray2(ScalarsArray, sim->n, 3, 1);
-  dataSet.AddPointField("Pressure", dataArray2);
+  vtkm::cont::ArrayHandleStride<T> aos2(AOS, sim->n, 3, 1);
+  dataSet.AddPointField("Pressure", aos2);
   
-  vtkm::cont::ArrayHandleStride<T> dataArray3(ScalarsArray, sim->n, 3, 2);
-  dataSet.AddPointField("cst-field", dataArray3);
+  vtkm::cont::ArrayHandleStride<T> aos3(AOS, sim->n, 3, 2);
+  dataSet.AddPointField("cst-field", aos3);
 #else
   std::cout << "creating fields with independent (stride=1) access\n";
 //https://vtk-m.readthedocs.io/en/stable/basic-array-handles.html#ex-arrayhandlefromvector
@@ -101,8 +102,6 @@ void Initialize(int argc, char* argv[], sph::ParticlesData<T> *sim)
 
   dataSet.PrintSummary(std::cout);
   
-
-  
     //Creating Actor
   vtkm::cont::ColorTable colorTable("viridis");
   vtkm::rendering::Actor actor(dataSet.GetCellSet(),
@@ -112,12 +111,12 @@ void Initialize(int argc, char* argv[], sph::ParticlesData<T> *sim)
 
   // Adding Actor to the scene
   scene.AddActor(actor);
-/*
+
   mapper0.SetUsePoints();
   mapper0.SetRadius(0.02f);
   mapper0.UseVariableRadius(false);
   mapper0.SetRadiusDelta(0.05f);
-  */
+
 }
 
 void Execute(int it, int frequency)
@@ -127,7 +126,7 @@ void Execute(int it, int frequency)
   if(it % frequency == 0)
     {
     fname << "insitu." << it << ".png";
-    vtkm::rendering::View3D view(scene, mapper3, canvas);
+    vtkm::rendering::View3D view(scene, mapper0, canvas);
     view.SetBackgroundColor(vtkm::rendering::Color(1.0f, 1.0f, 1.0f));
     view.SetForegroundColor(vtkm::rendering::Color(0.0f, 0.0f, 0.0f));
     view.Paint();
