@@ -1,11 +1,17 @@
 #ifndef VTKmAdaptor_h
 #define VTKmAdaptor_h
 
+#include <iomanip>
+
 #include <vtkm/cont/ColorTable.h>
 #include <vtkm/cont/DataSet.h>
+#include <vtkm/cont/ArrayCopy.h>
+#include <vtkm/cont/ArrayCopyDevice.h>
 #include <vtkm/cont/DataSetBuilderExplicit.h>
 #include <vtkm/cont/ArrayHandleExtractComponent.h>
+#include <vtkm/cont/ArrayHandleCompositeVector.h>
 #include <vtkm/cont/ArrayHandleStride.h>
+#include <vtkm/cont/ArrayHandleIndex.h>
 #include <vtkm/cont/Initialize.h>
 #include <vtkm/io/VTKDataSetWriter.h>
 #include <vtkm/rendering/Actor.h>
@@ -18,32 +24,43 @@
 
 #include <vtkm/rendering/Scene.h>
 #include <vtkm/rendering/View3D.h>
+/****************************************
 
+three methods have been identified to create coordinates array handles from the
+given std::vector<T> x, y, z;         // Positions
+
+1) vtkm::cont::ArrayHandle<vtkm::Vec3f> coordsArray0;
+   coordsArray0.Allocate(static_cast<vtkm::Id>(sim->n));
+
+2) coordsArray1 = vtkm::cont::make_ArrayHandleSOA<vtkm::Vec3f>({sim->x, sim->y, sim->z});;
+
+3) coordsArray2 = vtkm::cont::make_ArrayHandleCompositeVector(component1, component2, component3);
+
+****************************************/
 namespace VTKmAdaptor
 {
-  vtkm::rendering::CanvasRayTracer canvas(1080, 1080);
-  vtkm::rendering::Scene           scene;
+  vtkm::rendering::CanvasRayTracer   canvas(1080, 1080);
+  vtkm::rendering::Scene             scene;
   vtkm::rendering::MapperPoint       mapper0; // rendering crash
   vtkm::rendering::MapperRayTracer   mapper1; // no rendering errors but empty output 
   vtkm::rendering::MapperWireframer  mapper2; // rendering errors out, creates empty images
   vtkm::rendering::MapperGlyphScalar mapper3; // rendering crash
-  vtkm::cont::DataSet              dataSet;
-  std::vector<vtkm::Id>            connectivity;
+  vtkm::cont::DataSet                dataSet;
+  vtkm::Bounds bounds;
 
 template<typename T>
 void Initialize(int argc, char* argv[], sph::ParticlesData<T> *sim)
 {
   std::cout << "VTK-m::Initialize" << std::endl;
+
   vtkm::cont::Initialize(argc, argv);
 
   vtkm::cont::DataSetBuilderExplicit dataSetBuilder;
-
-  connectivity.resize(sim->n); 
-  std::iota(connectivity.begin(), connectivity.end(), 0);
   
-  vtkm::cont::ArrayHandle<vtkm::Vec3f> coordsArray;
-  coordsArray.Allocate(static_cast<vtkm::Id>(sim->n));
-  auto coordsPortal = coordsArray.WritePortal();
+  vtkm::cont::ArrayHandle<vtkm::Vec3f> coordsArray0;
+  coordsArray0.Allocate(static_cast<vtkm::Id>(sim->n));
+
+  auto coordsPortal = coordsArray0.WritePortal();
   for (std::size_t index = 0; index < sim->n; ++index)
   {
     coordsPortal.Set(static_cast<vtkm::Id>(index),
@@ -51,41 +68,71 @@ void Initialize(int argc, char* argv[], sph::ParticlesData<T> *sim)
                                     static_cast<vtkm::FloatDefault>(sim->y[index]),
                                     static_cast<vtkm::FloatDefault>(sim->z[index])));
   }
-  auto connArray = vtkm::cont::make_ArrayHandle(connectivity, vtkm::CopyFlag::Off);
+  std::cout << "COORDARRAY0 HANDLE" << std::endl;
+  vtkm::cont::printSummary_ArrayHandle(coordsArray0, std::cout);
+  std::cout << "--------------------------" << std::endl;
+  
+  /****************************************/
+  auto component1 = vtkm::cont::make_ArrayHandle(sim->x, vtkm::CopyFlag::Off);
+  auto component2 = vtkm::cont::make_ArrayHandle(sim->y, vtkm::CopyFlag::Off);
+  auto component3 = vtkm::cont::make_ArrayHandle(sim->z, vtkm::CopyFlag::Off);
+  
+  auto coordsArray1 =
+    vtkm::cont::make_ArrayHandleSOA<vtkm::Vec3f>({sim->x, sim->y, sim->z});
+  vtkm::cont::printSummary_ArrayHandle(coordsArray1, std::cout);
+  vtkm::cont::ArrayHandle<vtkm::Vec3f> positions1;
+  vtkm::cont::ArrayCopyDevice(coordsArray1, positions1);
+  std::cout << "COORDARRAY0 HANDLE" << std::endl;
+  vtkm::cont::printSummary_ArrayHandle(coordsArray1, std::cout);
+  std::cout << "--------------------------" << std::endl;
+  
+    /****************************************/
+  // https://vtk-m.readthedocs.io/en/v2.2.0/fancy-array-handles.html#composite-vector-arrays
+  auto coordsArray2 =
+    vtkm::cont::make_ArrayHandleCompositeVector(component1, component2, component3);
+  vtkm::cont::printSummary_ArrayHandle(coordsArray2, std::cout);
+  
+  vtkm::cont::ArrayHandle<vtkm::Vec3f> positions2;
+  vtkm::cont::ArrayCopyDevice(coordsArray2, positions2);
+  std::cout << "COORDARRAY2 HANDLE" << std::endl;
+  vtkm::cont::printSummary_ArrayHandle(coordsArray2, std::cout);
+  std::cout << "--------------------------" << std::endl;
+  
+  bounds = vtkm::Bounds(vtkm::Vec3f_64(-1.0, -1.0, -1.0),
+                        vtkm::Vec3f_64(2.0*sim->par_size - 1.0,
+                                       2.0*sim->par_size - 1.0,
+                                       2.0*sim->par_size - 1.0)
+                       );
+
+  vtkm::cont::ArrayHandle<vtkm::Id> connectivity;
+  vtkm::cont::ArrayCopy(vtkm::cont::make_ArrayHandleIndex(static_cast<vtkm::Id>(sim->n)), connectivity);
+  
   vtkm::IdComponent numberOfPointsPerCell = 1;
-  dataSet = dataSetBuilder.Create(coordsArray, // use template line 230
+  dataSet = dataSetBuilder.Create(positions2, // use template line 230
                                                       vtkm::CellShapeTagVertex(),
                                                       numberOfPointsPerCell,
-                                                      connArray, "coords");
- /**/
- /*
-   vtkm::cont::DataSet dataSet = dataSetBuilder.Create(coordsArray,
-                                                      shapes,
-                                                      numIndices,
-                                                      connectivity);
-   */
-   /*
-  vtkm::cont::DataSet dataSet = dataSetBuilder.Create(sim->x, // use template line 260
-                                                      sim->y,
-                                                      sim->z,
-                                                      shapes,
-                                                      numIndices,
-                                                      connectivity);
-  */
+                                                      connectivity, "coords");
 
 #ifdef STRIDED_SCALARS
   // NOTE: In this case, the num_vals, needs to be
   // the full extent of the strided area, thus sim->n*sim->NbofScalarfields
   std::cout << "creating fields with strided access\n";
-  auto AOS = vtkm::cont::make_ArrayHandle<T>(&sim->scalarsAOS[0].density, sim->n*sim->NbofScalarfields, vtkm::CopyFlag::Off);
+   // use vtkm::Vec3f_64
+  auto AOS = vtkm::cont::make_ArrayHandle<T>(&sim->scalarsAOS[0].density,
+                                                         sim->n * sim->NbofScalarfields,
+                                                         //sim->n * 1,
+                                                         vtkm::CopyFlag::Off);
 
-  vtkm::cont::ArrayHandleStride<T> aos1(AOS, sim->n, 3, 0);
+  vtkm::cont::ArrayHandleStride<T> aos1 (AOS, sim->n, 3, 0);
+                                          //= vtkm::cont::ArrayExtractComponent(AOS, 0, vtkm::CopyFlag::Off);
   dataSet.AddPointField("Density", aos1);
   
   vtkm::cont::ArrayHandleStride<T> aos2(AOS, sim->n, 3, 1);
+                                          //vtkm::cont::ArrayExtractComponent(AOS, 1, vtkm::CopyFlag::Off);
   dataSet.AddPointField("Pressure", aos2);
   
   vtkm::cont::ArrayHandleStride<T> aos3(AOS, sim->n, 3, 2);
+                                          //vtkm::cont::ArrayExtractComponent(AOS, 2, vtkm::CopyFlag::Off);
   dataSet.AddPointField("cst-field", aos3);
 #else
   std::cout << "creating fields with independent (stride=1) access\n";
@@ -98,15 +145,22 @@ void Initialize(int argc, char* argv[], sph::ParticlesData<T> *sim)
   
   auto dataArray3 = vtkm::cont::make_ArrayHandle(sim->scalar3, vtkm::CopyFlag::Off);
   dataSet.AddPointField("cst-field", dataArray3);
-#endif
 
+#endif
+  auto velArray =
+    vtkm::cont::make_ArrayHandleCompositeVector(vtkm::cont::make_ArrayHandle(sim->vx, vtkm::CopyFlag::Off), 
+                                                vtkm::cont::make_ArrayHandle(sim->vy, vtkm::CopyFlag::Off), 
+                                                vtkm::cont::make_ArrayHandle(sim->vz, vtkm::CopyFlag::Off));
+  vtkm::cont::printSummary_ArrayHandle(velArray, std::cout);
+  dataSet.AddPointField("velocity", velArray);
+  
   dataSet.PrintSummary(std::cout);
   
     //Creating Actor
   vtkm::cont::ColorTable colorTable("viridis");
   vtkm::rendering::Actor actor(dataSet.GetCellSet(),
                                dataSet.GetCoordinateSystem(),
-                               dataSet.GetField("Pressure"),
+                               dataSet.GetField("Density"),
                                colorTable);
 
   // Adding Actor to the scene
@@ -121,22 +175,29 @@ void Initialize(int argc, char* argv[], sph::ParticlesData<T> *sim)
 
 void Execute(int it, int frequency)
 {
-
+/*
   std::ostringstream fname;
   if(it % frequency == 0)
     {
-    fname << "insitu." << it << ".png";
+    fname << "insitu." << std::setfill('0') << std::setw(4) << it << ".png";
     vtkm::rendering::View3D view(scene, mapper0, canvas);
+
+    view.GetCamera().ResetToBounds(bounds);
     view.SetBackgroundColor(vtkm::rendering::Color(1.0f, 1.0f, 1.0f));
     view.SetForegroundColor(vtkm::rendering::Color(0.0f, 0.0f, 0.0f));
     view.Paint();
     view.SaveAs(fname.str());
     }
+    */
 }
 
-void Finalize()
+template<typename T>
+void Finalize(const sph::ParticlesData<T> *sim)
 {
-  vtkm::io::VTKDataSetWriter writer("/dev/shm/dummy.vtk");
+  std::ostringstream fname;
+  fname << "/dev/shm/dummy." << std::setfill('0') << std::setw(2) << sim->par_rank << ".vtk";
+
+  vtkm::io::VTKDataSetWriter writer(fname.str());
   writer.SetFileTypeToBinary();
   writer.WriteDataSet(dataSet);
 }

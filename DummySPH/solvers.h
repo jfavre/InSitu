@@ -39,6 +39,7 @@ class ParticlesData
 #endif
     static constexpr int NbofScalarfields = 3;
     static constexpr T value = 0.12345;
+    static constexpr T bbox_offset = 2.0; // to offset each MPI partition in 3D space
     
     void AllocateGridMemory(int N)
     {
@@ -65,10 +66,10 @@ class ParticlesData
     for (auto iz=0; iz < N; iz++) {
       T zz = -1.0f + 2.0f*iz/(N - 1.0f);
       for (auto iy=0; iy < N; iy++){
-        T yy = -1.0f + 2.0f*iy/(N - 1.0f);
+        T yy = bbox_offset*this->par_rank - 1.0f + 2.0f*iy/(N - 1.0f);
         for (auto ix=0; ix < N; ix++)
           {
-          this->x[id] = -1.0f + 2.0f*ix/(N - 1.0);
+          this->x[id] = bbox_offset*this->par_rank -1.0f + 2.0f*ix/(N - 1.0);
           this->y[id] = yy;
           this->z[id] = zz;
           id++;
@@ -79,8 +80,8 @@ class ParticlesData
     for (size_t i=0; i < this->n; i++)
       {
       T R = (this->x[i]*this->x[i] + /* rho is equal to radius_square */
-                 this->y[i]*this->y[i] +
-                 this->z[i]*this->z[i]);
+             this->y[i]*this->y[i] +
+             this->z[i]*this->z[i]);
 #ifdef STRIDED_SCALARS
       this->scalarsAOS[i].density = R;
       this->scalarsAOS[i].pressure = sqrt(R);
@@ -120,9 +121,9 @@ class ParticlesData
     this->time = this->iteration * 0.01; // fixed, arbitrary timestep value
     for (size_t i=0; i < this->n; i++)
       {
-      T R = (this->x[i]*(this->x[i]+this->time) + /* rho is equal to radius_square */
-             this->y[i]*(this->y[i]+this->time) +
-             this->z[i]*(this->z[i]+this->time));
+      T R = ((this->x[i]+this->time)*(this->x[i]+this->time) + /* rho is equal to radius_square */
+             (this->y[i]+this->time)*(this->y[i]+this->time) +
+             (this->z[i]+this->time)*(this->z[i]+this->time));
 #ifdef STRIDED_SCALARS
       this->scalarsAOS[i].density = R;
       this->scalarsAOS[i].pressure = sqrt(R);
