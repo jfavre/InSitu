@@ -1,6 +1,15 @@
 #ifndef AscentAdaptor_h
 #define AscentAdaptor_h
 
+/*
+publish() leads to following call path
+
+VTKHDataAdapter::BlueprintToVTKHCollection()
+VTKHDataAdapter::PointsImplicitBlueprintToVTKmDataSet()
+        coords = detail::GetExplicitCoordinateSystem<float64>() which
+        allocates connectivity.Allocate(nverts);
+*/
+
 #include "conduit_blueprint.hpp"
 #include <cstring>
 #include <fstream>
@@ -43,7 +52,7 @@ void addStridedField(conduit::Node& mesh,
     mesh["fields/" + name + "/volume_dependent"].set("false");
 }
 
-#define POINTS 1
+//#define POINTS 1 //  meaning that the connectivity list is not explicitly given
 
 template<typename T>
 void Initialize(sph::ParticlesData<T> *sim)
@@ -98,9 +107,9 @@ void Initialize(sph::ParticlesData<T> *sim)
   addStridedField(mesh, "Pressure", &sim->scalarsAOS[0].pressure, sim->n, 0, sim->NbofScalarfields);
   addStridedField(mesh, "cst-field", &sim->scalarsAOS[0].cstfield, sim->n, 0, sim->NbofScalarfields);
 #else
-  addField(mesh, "Density",  sim->scalar1.data(), sim->n);
-  addField(mesh, "Pressure", sim->scalar2.data(), sim->n);
-  addField(mesh, "cst-field", sim->scalar3.data(), sim->n);
+  addField(mesh, "Density",  sim->density.data(), sim->n);
+  addField(mesh, "Pressure", sim->pressure.data(), sim->n);
+  addField(mesh, "cst-field", sim->cstfield.data(), sim->n);
 #endif
 
   addField(mesh, "vx", sim->vx.data(), sim->n);
@@ -115,7 +124,7 @@ void Initialize(sph::ParticlesData<T> *sim)
   mesh["fields/velocity/volume_dependent"].set("false");
   
 #ifndef POINTS
-  std::vector<conduit_int64> conn(sim->n);
+  std::vector<conduit_int32> conn(sim->n);
   std::iota(conn.begin(), conn.end(), 0);
   mesh["topologies/mesh/elements/connectivity"].set(conn);
   mesh["topologies/mesh/elements/shape"] = "point";
@@ -180,6 +189,7 @@ void Execute()
 
 void Finalize()
 {
+/*
   conduit::Node save_data_actions;
   conduit::Node &add_act = save_data_actions.append(); 
   add_act["action"] = "add_extracts";
@@ -191,6 +201,7 @@ void Finalize()
   ascent.publish(mesh);
   ascent.execute(save_data_actions);
   ascent.close();
+  */
 }
 
 }

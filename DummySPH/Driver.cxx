@@ -31,12 +31,10 @@ int main(int argc, char *argv[])
   int frequency = 10;
   MPI_Init(&argc, &argv);
     
-  ParticlesData<double> *sim = new(ParticlesData<double>);
+  ParticlesData<float> *sim = new(ParticlesData<float>);
   sim->AllocateGridMemory(Nparticles);
 
-  viz::init_catalyst(argc, argv);
-  viz::init_ascent(sim);
-  viz::init_vtkm(argc, argv, sim);
+  viz::init(argc, argv, sim);
 
   while (it < Niterations)
     {
@@ -45,7 +43,7 @@ int main(int argc, char *argv[])
     it++;
     }
 
-  viz::finalize();
+  viz::finalize(sim);
 
   sim->FreeGridMemory();
 
