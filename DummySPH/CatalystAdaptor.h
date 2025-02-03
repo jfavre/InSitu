@@ -79,15 +79,15 @@ void addStridedField(conduit_cpp::Node& mesh,
 {
     mesh["fields/" + name + "/association"] = "vertex";
     mesh["fields/" + name + "/topology"]    = "mesh";
-    mesh["fields/" + name + "/values"].set_external_float64_ptr(field,
+    mesh["fields/" + name + "/values"].set_external_float32_ptr(field,
                                                                 N,
                                                                 offset * sizeof(T),
-                                                                stride * sizeof(T),
-                                                                sizeof(T) /* element_bytes */,
-                                                                0 /* endianness */);
+                                                                stride * sizeof(T));
     mesh["fields/" + name + "/volume_dependent"].set("false");
 }
-                    
+
+//#define IMPLICIT_CONNECTIVITY_LIST 1
+
 template<typename T>
 void Execute(sph::ParticlesData<T> *sim)
 {
@@ -108,31 +108,72 @@ void Execute(sph::ParticlesData<T> *sim)
   // now create the mesh.
   auto mesh = channel["data"];
 
-  // start with coordsets
-  mesh["coordsets/coords/type"].set("explicit");
+  mesh["coordsets/coords/type"] = "explicit";
+  mesh["topologies/mesh/coordset"] = "coords";
+#ifdef STRIDED_SCALARS
+  mesh["coordsets/coords/values/x"].set_external_float32_ptr(&sim->scalarsAOS[0].mass, sim->n,
+                                                                1 * sizeof(T),
+                                                                sim->NbofScalarfields * sizeof(T));
+  mesh["coordsets/coords/values/y"].set_external_float32_ptr(&sim->scalarsAOS[0].mass, sim->n,
+                                                                2 * sizeof(T),
+                                                                sim->NbofScalarfields * sizeof(T));
+  mesh["coordsets/coords/values/z"].set_external_float32_ptr(&sim->scalarsAOS[0].mass, sim->n,
+                                                                3 * sizeof(T),
+                                                                sim->NbofScalarfields * sizeof(T));
+#else
   mesh["coordsets/coords/values/x"].set_external(sim->x);
   mesh["coordsets/coords/values/y"].set_external(sim->y);
   mesh["coordsets/coords/values/z"].set_external(sim->z);
-
-  mesh["topologies/mesh/type"] = "points";
-  mesh["topologies/mesh/coordset"].set("coords");
- 
-  // Finally, add fields.
-  auto fields = mesh["fields"];
-  
-#ifdef STRIDED_SCALARS
-  addStridedField(mesh, "Density",   sim->scalars.data(), sim->n, 0, sim->NbofScalarfields);
-  addStridedField(mesh, "Pressure",  sim->scalars.data(), sim->n, 1, sim->NbofScalarfields);
-  addStridedField(mesh, "cst-field", sim->scalars.data(), sim->n, 2, sim->NbofScalarfields);
-#else
-  addField(mesh, "Density",   sim->scalar1.data(), sim->n);
-  addField(mesh, "Pressure",  sim->scalar2.data(), sim->n);
-  addField(mesh, "cst-field", sim->scalar3.data(), sim->n);
 #endif
 
-  addField(mesh, "x", sim->x.data(), sim->n);
-  addField(mesh, "y", sim->y.data(), sim->n);
-  addField(mesh, "z", sim->z.data(), sim->n);
+#ifdef IMPLICIT_CONNECTIVITY_LIST
+  mesh["topologies/mesh/type"] = "points";
+#else
+  mesh["topologies/mesh/type"] = "unstructured";
+  std::vector<conduit_int32> conn(sim->n);
+  std::iota(conn.begin(), conn.end(), 0);
+  mesh["topologies/mesh/elements/connectivity"].set(conn);
+  mesh["topologies/mesh/elements/shape"] = "point";
+#endif
+  mesh["topologies/mesh/coordset"].set("coords");
+  
+#ifdef STRIDED_SCALARS
+
+  addStridedField(mesh, "rho",  &sim->scalarsAOS[0].rho, sim->n, 0, sim->NbofScalarfields);
+  addStridedField(mesh, "temp", &sim->scalarsAOS[0].temp, sim->n, 0, sim->NbofScalarfields);
+
+  addStridedField(mesh, "x", &(sim->scalarsAOS[0].pos[0]), sim->n, 0, sim->NbofScalarfields);
+  addStridedField(mesh, "y", &(sim->scalarsAOS[0].pos[0]), sim->n, 1, sim->NbofScalarfields);
+  addStridedField(mesh, "z", &(sim->scalarsAOS[0].pos[0]), sim->n, 2, sim->NbofScalarfields);
+  addStridedField(mesh, "vx", &(sim->scalarsAOS[0].vel[0]), sim->n, 0, sim->NbofScalarfields);
+  addStridedField(mesh, "vy", &(sim->scalarsAOS[0].vel[0]), sim->n, 1, sim->NbofScalarfields);
+  addStridedField(mesh, "vz", &(sim->scalarsAOS[0].vel[0]), sim->n, 2, sim->NbofScalarfields);
+  /*
+   there seems to be an offset I don't understand
+  mesh["fields/velocity/association"] = "vertex";
+  mesh["fields/velocity/topology"]    = "mesh";
+  mesh["fields/velocity/values/u"].set_external_float32_ptr(&(sim->scalarsAOS[0].vel[0]), sim->n,
+                                                                0,
+                                                                sim->NbofScalarfields * sizeof(T));
+  mesh["fields/velocity/values/v"].set_external_float32_ptr(&(sim->scalarsAOS[0].vel[0]), sim->n,
+                                                /                1 * sizeof(T),
+                                                                sim->NbofScalarfields * sizeof(T));
+  mesh["fields/velocity/values/w"].set_external_float32_ptr(&(sim->scalarsAOS[0].vel[0]), sim->n,
+                                                                2 * sizeof(T),
+                                                                sim->NbofScalarfields * sizeof(T));
+  mesh["fields/velocity/volume_dependent"].set("false");
+  */
+
+#else
+  addField(mesh, "rho" , sim->rho.data(), sim->n);
+
+  mesh["fields/velocity/association"] = "vertex";
+  mesh["fields/velocity/topology"]    = "mesh";
+  mesh["fields/velocity/values/u"].set_external(sim->vx.data(), sim->n);
+  mesh["fields/velocity/values/v"].set_external(sim->vy.data(), sim->n);
+  mesh["fields/velocity/values/w"].set_external(sim->vz.data(), sim->n);
+  mesh["fields/velocity/volume_dependent"].set("false");
+#endif
 
   conduit_cpp::Node verify_info;
   if (!conduit_blueprint_verify("mesh", conduit_cpp::c_node(&mesh), conduit_cpp::c_node(&verify_info)))

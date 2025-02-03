@@ -25,30 +25,30 @@ class ParticlesData
 
 
 #ifdef STRIDED_SCALARS
-    struct all_scalars_fields
+    struct tipsySph
     {
-      T x;
-      T y;
-      T z;
-      T density;
-      T pressure;
-      T cstfield;
-      T vx;
-      T vy;
-      T vz;
+      T mass;
+      T pos[3];
+      T vel[3];
+      T rho;
+      T temp;
+      //T hsmooth;
+      //T metals;
+      //T phi;
     };
-    std::vector<all_scalars_fields> scalarsAOS;
-    static constexpr int NbofScalarfields = sizeof(all_scalars_fields)/sizeof(T);
+    std::vector<tipsySph> scalarsAOS;
+    static constexpr int NbofScalarfields = sizeof(tipsySph)/sizeof(T);
 #else
+    std::vector<T> mass;            // "mass"
     std::vector<T> x, y, z;         // Positions
     std::vector<T> vx, vy, vz;      // Velocities
-    std::vector<T> density;         // Density
-    std::vector<T> pressure;        // Pressure
-    std::vector<T> cstfield;        // "cst-field"
+    std::vector<T> rho;             // Density
+    std::vector<T> temp;            // Temperature
+
     static constexpr int NbofScalarfields = 9;
 #endif
 
-    static constexpr T value = 0.12345;
+    static constexpr T cstMass = 0.12345;
     static constexpr T bbox_offset = 2.0; // to offset each MPI partition in 3D space
     
     void AllocateGridMemory(int N)
@@ -64,9 +64,9 @@ class ParticlesData
     this->x.resize(this->n);
     this->y.resize(this->n);
     this->z.resize(this->n);
-    this->density.resize(this->n);
-    this->pressure.resize(this->n);
-    this->cstfield.resize(this->n);
+    this->rho.resize(this->n);
+    this->temp.resize(this->n);
+    this->mass.resize(this->n);
     this->vx.resize(this->n);
     this->vy.resize(this->n);
     this->vz.resize(this->n);
@@ -81,9 +81,9 @@ class ParticlesData
         for (auto ix=0; ix < N; ix++)
           {
 #ifdef STRIDED_SCALARS
-          this->scalarsAOS[id].x = bbox_offset*this->par_rank -1.0f + 2.0f*ix/(N - 1.0);
-          this->scalarsAOS[id].y = yy;
-          this->scalarsAOS[id].z = zz;
+          this->scalarsAOS[id].pos[0] = bbox_offset*this->par_rank -1.0f + 2.0f*ix/(N - 1.0);
+          this->scalarsAOS[id].pos[1] = yy;
+          this->scalarsAOS[id].pos[2] = zz;
 #else
           this->x[id] = bbox_offset*this->par_rank -1.0f + 2.0f*ix/(N - 1.0);
           this->y[id] = yy;
@@ -97,25 +97,26 @@ class ParticlesData
     for (size_t i=0; i < this->n; i++)
       {
 #ifdef STRIDED_SCALARS
-      T R = (this->scalarsAOS[i].x*this->scalarsAOS[i].x + /* rho is equal to radius_square */
-             this->scalarsAOS[i].y*this->scalarsAOS[i].y +
-             this->scalarsAOS[i].z*this->scalarsAOS[i].z);
-      this->scalarsAOS[i].density = R;
-      this->scalarsAOS[i].pressure = sqrt(R);
-      this->scalarsAOS[i].cstfield = value;
-      this->scalarsAOS[i].vx = R;
-      this->scalarsAOS[i].vy = R;
-      this->scalarsAOS[i].vz = rand()/(float)RAND_MAX;
+      /* rho is equal to radius_square */
+      T R = (this->scalarsAOS[i].pos[0] * this->scalarsAOS[i].pos[0] +
+             this->scalarsAOS[i].pos[1] * this->scalarsAOS[i].pos[1] +
+             this->scalarsAOS[i].pos[2] * this->scalarsAOS[i].pos[2]);
+      this->scalarsAOS[i].rho = R;
+      this->scalarsAOS[i].temp = sqrt(R);
+      this->scalarsAOS[i].mass = cstMass;
+      this->scalarsAOS[i].vel[0] = R;
+      this->scalarsAOS[i].vel[1] = R;
+      this->scalarsAOS[i].vel[2] = R;
 #else
       T R = (this->x[i]*this->x[i] + /* rho is equal to radius_square */
              this->y[i]*this->y[i] +
              this->z[i]*this->z[i]);
-      this->density[i] = R;
-      this->pressure[i] = sqrt(R);
-      this->cstfield[i] = value;
+      this->rho[i] = R;
+      this->temp[i] = sqrt(R);
+      this->mass[i] = cstMass;
       this->vx[i] = R;
-      this->vy[i] = rand()/(float)RAND_MAX;
-      this->vz[i] = rand()/(float)RAND_MAX;
+      this->vy[i] = R;
+      this->vz[i] = R;
 #endif
       }
     //std::cout << "Vectors of size " << sim.x.size() << std::endl;
@@ -129,9 +130,9 @@ class ParticlesData
     this->x.clear();
     this->y.clear();
     this->z.clear();
-    this->density.clear();
-    this->pressure.clear();
-    this->cstfield.clear();
+    this->rho.clear();
+    this->temp.clear();
+    this->mass.clear();
     this->vx.clear();
     this->vy.clear();
     this->vz.clear();
@@ -145,23 +146,24 @@ class ParticlesData
     for (size_t i=0; i < this->n; i++)
       {
 #ifdef STRIDED_SCALARS
-      T R = (this->scalarsAOS[i].x*this->scalarsAOS[i].x + /* rho is equal to radius_square */
-             this->scalarsAOS[i].y*this->scalarsAOS[i].y +
-             this->scalarsAOS[i].z*this->scalarsAOS[i].z);
-      this->scalarsAOS[i].density = R;
-      this->scalarsAOS[i].pressure = sqrt(R);
-      this->scalarsAOS[i].cstfield = value;
+      T R = ((this->scalarsAOS[i].pos[0]+this->time) * (this->scalarsAOS[i].pos[0]+this->time) +
+             (this->scalarsAOS[i].pos[1]+this->time) * (this->scalarsAOS[i].pos[1]+this->time) +
+             (this->scalarsAOS[i].pos[2]+this->time) * (this->scalarsAOS[i].pos[2]+this->time));
+      this->scalarsAOS[i].rho = R;
+      this->scalarsAOS[i].temp = sqrt(R);
+      //this->scalarsAOS[i].mass = cstMass;
 #else
       T R = ((this->x[i]+this->time)*(this->x[i]+this->time) + /* rho is equal to radius_square */
              (this->y[i]+this->time)*(this->y[i]+this->time) +
              (this->z[i]+this->time)*(this->z[i]+this->time));
-      this->density[i] = R;
-      this->pressure[i] = sqrt(R);
+      this->rho[i] = R;
+      this->temp[i] = sqrt(R);
+      // all variables remain constant over time except "rho" and "temp"
 #endif
       }
 
 #ifndef STRIDED_SCALARS
-    auto minmax = std::minmax_element(this->density.begin(), this->density.end());
+    auto minmax = std::minmax_element(this->rho.begin(), this->rho.end());
 #endif
     };
 };

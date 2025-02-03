@@ -43,16 +43,13 @@ void addStridedField(conduit::Node& mesh,
 {
     mesh["fields/" + name + "/association"] = "vertex";
     mesh["fields/" + name + "/topology"]    = "mesh";
-    mesh["fields/" + name + "/values"].set_external_float64_ptr(field,
-                                                                N,
+    mesh["fields/" + name + "/values"].set_external_float32_ptr(field, N,
                                                                 offset * sizeof(T),
-                                                                stride * sizeof(T),
-                                                                sizeof(T) /* element_bytes */,
-                                                                0 /* endianness */);
+                                                                stride * sizeof(T));
     mesh["fields/" + name + "/volume_dependent"].set("false");
 }
 
-//#define POINTS 1 //  meaning that the connectivity list is not explicitly given
+#define IMPLICIT_CONNECTIVITY_LIST 1 // the connectivity list is not given, but created by vtkm
 
 template<typename T>
 void Initialize(sph::ParticlesData<T> *sim)
@@ -91,44 +88,83 @@ void Initialize(sph::ParticlesData<T> *sim)
   std::cout << "time: " << sim->iteration*0.1 << " cycle: " << sim->iteration << std::endl;
 
   mesh["coordsets/coords/type"] = "explicit";
+  mesh["topologies/mesh/coordset"] = "coords";
+#ifdef STRIDED_SCALARS
+  mesh["coordsets/coords/values/x"].set_external_float32_ptr(&sim->scalarsAOS[0].mass, sim->n,
+                                                                1 * sizeof(T),
+                                                                sim->NbofScalarfields * sizeof(T));
+  mesh["coordsets/coords/values/y"].set_external_float32_ptr(&sim->scalarsAOS[0].mass, sim->n,
+                                                                2 * sizeof(T),
+                                                                sim->NbofScalarfields * sizeof(T));
+  mesh["coordsets/coords/values/z"].set_external_float32_ptr(&sim->scalarsAOS[0].mass, sim->n,
+                                                                3 * sizeof(T),
+                                                                sim->NbofScalarfields * sizeof(T));
+#else
   mesh["coordsets/coords/values/x"].set_external(sim->x);
   mesh["coordsets/coords/values/y"].set_external(sim->y);
   mesh["coordsets/coords/values/z"].set_external(sim->z);
-  mesh["topologies/mesh/coordset"] = "coords";
+#endif
 
-#ifdef POINTS
+#ifdef IMPLICIT_CONNECTIVITY_LIST
   mesh["topologies/mesh/type"] = "points";
 #else
   mesh["topologies/mesh/type"] = "unstructured";
+  std::vector<conduit_int32> conn(sim->n);
+  std::iota(conn.begin(), conn.end(), 0);
+  mesh["topologies/mesh/elements/connectivity"].set(conn);
+  mesh["topologies/mesh/elements/shape"] = "point";
 #endif
   
 #ifdef STRIDED_SCALARS
-  addStridedField(mesh, "Density",  &sim->scalarsAOS[0].density, sim->n, 0, sim->NbofScalarfields);
-  addStridedField(mesh, "Pressure", &sim->scalarsAOS[0].pressure, sim->n, 0, sim->NbofScalarfields);
-  addStridedField(mesh, "cst-field", &sim->scalarsAOS[0].cstfield, sim->n, 0, sim->NbofScalarfields);
+  addStridedField(mesh, "rho",  &sim->scalarsAOS[0].rho, sim->n, 0, sim->NbofScalarfields);
+  addStridedField(mesh, "temp", &sim->scalarsAOS[0].temp, sim->n, 0, sim->NbofScalarfields);
+  //addStridedField(mesh, "mass", &sim->scalarsAOS[0].mass, sim->n, 0, sim->NbofScalarfields);
+
+  addStridedField(mesh, "x", &(sim->scalarsAOS[0].pos[0]), sim->n, 0, sim->NbofScalarfields);
+  addStridedField(mesh, "y", &(sim->scalarsAOS[0].pos[0]), sim->n, 1, sim->NbofScalarfields);
+  addStridedField(mesh, "z", &(sim->scalarsAOS[0].pos[0]), sim->n, 2, sim->NbofScalarfields);
+  addStridedField(mesh, "vx", &(sim->scalarsAOS[0].vel[0]), sim->n, 0, sim->NbofScalarfields);
+  addStridedField(mesh, "vy", &(sim->scalarsAOS[0].vel[0]), sim->n, 1, sim->NbofScalarfields);
+  addStridedField(mesh, "vz", &(sim->scalarsAOS[0].vel[0]), sim->n, 2, sim->NbofScalarfields);
+
+  /* there seems to be an offset I don't understand
+  mesh["fields/velocity/association"] = "vertex";
+  mesh["fields/velocity/topology"]    = "mesh";
+  mesh["fields/velocity/values/u"].set_external_float32_ptr(&(sim->scalarsAOS[0].vel[0]), sim->n,
+                                                                0,
+                                                                sim->NbofScalarfields * sizeof(T));
+  mesh["fields/velocity/values/v"].set_external_float32_ptr(&(sim->scalarsAOS[0].vel[0]), sim->n,
+                                                /                1 * sizeof(T),
+                                                                sim->NbofScalarfields * sizeof(T));
+  mesh["fields/velocity/values/w"].set_external_float32_ptr(&(sim->scalarsAOS[0].vel[0]), sim->n,
+                                                                2 * sizeof(T),
+                                                                sim->NbofScalarfields * sizeof(T));
+  mesh["fields/velocity/volume_dependent"].set("false");
+  */
+
 #else
-  addField(mesh, "Density",  sim->density.data(), sim->n);
-  addField(mesh, "Pressure", sim->pressure.data(), sim->n);
-  addField(mesh, "cst-field", sim->cstfield.data(), sim->n);
-#endif
+  addField(mesh, "rho" , sim->rho.data(), sim->n);
+  addField(mesh, "temp", sim->temp.data(), sim->n);
+  addField(mesh, "mass", sim->mass.data(), sim->n);
 
   addField(mesh, "vx", sim->vx.data(), sim->n);
   addField(mesh, "vy", sim->vy.data(), sim->n);
   addField(mesh, "vz", sim->vz.data(), sim->n);
+  
+  addField(mesh, "x", sim->x.data(), sim->n);
+  addField(mesh, "y", sim->y.data(), sim->n);
+  addField(mesh, "z", sim->z.data(), sim->n);
 
+  //*
   mesh["fields/velocity/association"] = "vertex";
   mesh["fields/velocity/topology"]    = "mesh";
   mesh["fields/velocity/values/u"].set_external(sim->vx.data(), sim->n);
   mesh["fields/velocity/values/v"].set_external(sim->vy.data(), sim->n);
   mesh["fields/velocity/values/w"].set_external(sim->vz.data(), sim->n);
   mesh["fields/velocity/volume_dependent"].set("false");
-  
-#ifndef POINTS
-  std::vector<conduit_int32> conn(sim->n);
-  std::iota(conn.begin(), conn.end(), 0);
-  mesh["topologies/mesh/elements/connectivity"].set(conn);
-  mesh["topologies/mesh/elements/shape"] = "point";
+  //*/
 #endif
+
   if(!conduit::blueprint::mesh::verify(mesh,verify_info))
   {
     CONDUIT_INFO("blueprint verify failed!" + verify_info.to_json());
@@ -151,10 +187,10 @@ void Initialize(sph::ParticlesData<T> *sim)
   scenes["s1/plots/p1/pipeline"] = "pl1";
   scenes["s1/plots/p1/color_table/discrete"] = "true";
 #else
-  scenes["s1/plots/p1/field"] = "vx";
+  scenes["s1/plots/p1/field"] = "rho";
 #endif
-  scenes["s1/plots/p1/points/radius"] = .005;
-  scenes["s1/plots/p1/points/radius_delta"] = .01;
+  //scenes["s1/plots/p1/points/radius"] = .005;
+  //scenes["s1/plots/p1/points/radius_delta"] = .01;
   scenes["s1/renders/r1/image_prefix"] = "image.%05d";
   scenes["s1/renders/r1/annotations"] = "true";
   double vec3[3];
@@ -169,7 +205,7 @@ void Initialize(sph::ParticlesData<T> *sim)
   scenes["s1/renders/r1/image_height"] = 1024;
   double dset_bounds[6] = {-1.0, 1.0 * sim->par_size, -1.0, 1.0 * sim->par_size, 0.0, 1.};
   scenes["s1/renders/r1/dataset_bounds"].set_float64_ptr(dset_bounds, 6);
-
+/*
   conduit::Node pipelines;
   pipelines["pl1/f1/type"] = "add_mpi_ranks";
   conduit::Node &params = pipelines["pl1/f1/params"];
@@ -179,6 +215,7 @@ void Initialize(sph::ParticlesData<T> *sim)
   conduit::Node &add_pipelines = actions.append();
   add_pipelines["action"] = "add_pipelines";
   add_pipelines["pipelines"] = pipelines;
+  */
 }
 
 void Execute()
@@ -189,7 +226,7 @@ void Execute()
 
 void Finalize()
 {
-/*
+
   conduit::Node save_data_actions;
   conduit::Node &add_act = save_data_actions.append(); 
   add_act["action"] = "add_extracts";
@@ -201,7 +238,7 @@ void Finalize()
   ascent.publish(mesh);
   ascent.execute(save_data_actions);
   ascent.close();
-  */
+
 }
 
 }

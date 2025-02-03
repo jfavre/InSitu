@@ -21,7 +21,7 @@
 #include <vtkm/rendering/MapperRayTracer.h>
 #include <vtkm/rendering/MapperWireframer.h>
 #include <vtkm/rendering/MapperGlyphScalar.h>
-
+#include <vtkm/filter/resampling/HistSampling.h>
 #include <vtkm/rendering/Scene.h>
 #include <vtkm/rendering/View3D.h>
 /****************************************
@@ -74,13 +74,13 @@ void Initialize(int argc, char* argv[], sph::ParticlesData<T> *sim)
   */
   /****************************************/
 #ifdef STRIDED_SCALARS
-  auto AOS = vtkm::cont::make_ArrayHandle<T>(&sim->scalarsAOS[0].x,
+  auto AOS = vtkm::cont::make_ArrayHandle<T>(&sim->scalarsAOS[0].mass,
                                              sim->n * sim->NbofScalarfields,
                                              vtkm::CopyFlag::Off);
 
-  vtkm::cont::ArrayHandleStride<T> pos_x (AOS, sim->n, sim->NbofScalarfields, 0);
-  vtkm::cont::ArrayHandleStride<T> pos_y (AOS, sim->n, sim->NbofScalarfields, 1);
-  vtkm::cont::ArrayHandleStride<T> pos_z (AOS, sim->n, sim->NbofScalarfields, 2);
+  vtkm::cont::ArrayHandleStride<T> pos_x (AOS, sim->n, sim->NbofScalarfields, 1);
+  vtkm::cont::ArrayHandleStride<T> pos_y (AOS, sim->n, sim->NbofScalarfields, 2);
+  vtkm::cont::ArrayHandleStride<T> pos_z (AOS, sim->n, sim->NbofScalarfields, 3);
 #else
 /*
   auto coordsArray1 =
@@ -95,19 +95,21 @@ void Initialize(int argc, char* argv[], sph::ParticlesData<T> *sim)
   */
   /****************************************/
   // https://vtk-m.readthedocs.io/en/v2.2.0/fancy-array-handles.html#composite-vector-arrays
-  auto pos_x = vtkm::cont::make_ArrayHandle(sim->x, vtkm::CopyFlag::Off);
-  auto pos_y = vtkm::cont::make_ArrayHandle(sim->y, vtkm::CopyFlag::Off);
-  auto pos_z = vtkm::cont::make_ArrayHandle(sim->z, vtkm::CopyFlag::Off);
+  auto pos_x = vtkm::cont::make_ArrayHandle<T>(sim->x, vtkm::CopyFlag::Off);
+  auto pos_y = vtkm::cont::make_ArrayHandle<T>(sim->y, vtkm::CopyFlag::Off);
+  auto pos_z = vtkm::cont::make_ArrayHandle<T>(sim->z, vtkm::CopyFlag::Off);
 #endif
   
   auto coordsArray2 =
     vtkm::cont::make_ArrayHandleCompositeVector(pos_x, pos_y, pos_z);
-  vtkm::cont::printSummary_ArrayHandle(coordsArray2, std::cout);
-  
-  vtkm::cont::ArrayHandle<vtkm::Vec3f> positions2;
-  vtkm::cont::ArrayCopyDevice(coordsArray2, positions2);
   std::cout << "COORDARRAY2 HANDLE" << std::endl;
   vtkm::cont::printSummary_ArrayHandle(coordsArray2, std::cout);
+  std::cout << "--------------------------" << std::endl;
+  
+  vtkm::cont::ArrayHandle<vtkm::Vec3f> positions2;
+  vtkm::cont::ArrayCopy(coordsArray2, positions2);
+  std::cout << "POSITIONS2 HANDLE" << std::endl;
+  vtkm::cont::printSummary_ArrayHandle(positions2, std::cout);
   std::cout << "--------------------------" << std::endl;
   
   bounds = vtkm::Bounds(vtkm::Vec3f_64(-1.0, -1.0, -1.0),
@@ -130,18 +132,18 @@ void Initialize(int argc, char* argv[], sph::ParticlesData<T> *sim)
   // the full extent of the strided area, thus sim->n*sim->NbofScalarfields
   std::cout << "creating fields with strided access\n";
 
-  vtkm::cont::ArrayHandleStride<T> aos1 (AOS, sim->n, sim->NbofScalarfields, 3);
-  dataSet.AddPointField("Density", aos1);
+  vtkm::cont::ArrayHandleStride<T> aos1 (AOS, sim->n, sim->NbofScalarfields, 7);
+  dataSet.AddPointField("rho", aos1);
   
-  vtkm::cont::ArrayHandleStride<T> aos2(AOS, sim->n, sim->NbofScalarfields, 4);
-  dataSet.AddPointField("Pressure", aos2);
+  vtkm::cont::ArrayHandleStride<T> aos2(AOS, sim->n, sim->NbofScalarfields, 8);
+  dataSet.AddPointField("temp", aos2);
   
-  vtkm::cont::ArrayHandleStride<T> aos3(AOS, sim->n, sim->NbofScalarfields, 5);
-  dataSet.AddPointField("cst-field", aos3);
+  vtkm::cont::ArrayHandleStride<T> aos3(AOS, sim->n, sim->NbofScalarfields, 0);
+  dataSet.AddPointField("mass", aos3);
   
-  vtkm::cont::ArrayHandleStride<T> vx(AOS, sim->n, sim->NbofScalarfields, 6);
-  vtkm::cont::ArrayHandleStride<T> vy(AOS, sim->n, sim->NbofScalarfields, 7);
-  vtkm::cont::ArrayHandleStride<T> vz(AOS, sim->n, sim->NbofScalarfields, 8);
+  vtkm::cont::ArrayHandleStride<T> vx(AOS, sim->n, sim->NbofScalarfields, 4);
+  vtkm::cont::ArrayHandleStride<T> vy(AOS, sim->n, sim->NbofScalarfields, 5);
+  vtkm::cont::ArrayHandleStride<T> vz(AOS, sim->n, sim->NbofScalarfields, 6);
   /* first method to view a vector field from its base components */
   auto velArray = vtkm::cont::make_ArrayHandleCompositeVector(vx, vy, vz);
   vtkm::cont::printSummary_ArrayHandle(velArray, std::cout);
@@ -149,14 +151,14 @@ void Initialize(int argc, char* argv[], sph::ParticlesData<T> *sim)
 #else
   std::cout << "creating fields with independent (stride=1) access\n";
 //https://vtk-m.readthedocs.io/en/stable/basic-array-handles.html#ex-arrayhandlefromvector
-  auto dataArray1 = vtkm::cont::make_ArrayHandle(sim->density, vtkm::CopyFlag::Off);
-  dataSet.AddPointField("Density", dataArray1);
+  auto dataArray1 = vtkm::cont::make_ArrayHandle(sim->rho, vtkm::CopyFlag::Off);
+  dataSet.AddPointField("rho", dataArray1);
   
-  auto dataArray2 = vtkm::cont::make_ArrayHandle(sim->pressure, vtkm::CopyFlag::Off);
-  dataSet.AddPointField("Pressure", dataArray2);
+  auto dataArray2 = vtkm::cont::make_ArrayHandle(sim->temp, vtkm::CopyFlag::Off);
+  dataSet.AddPointField("temp", dataArray2);
   
-  auto dataArray3 = vtkm::cont::make_ArrayHandle(sim->cstfield, vtkm::CopyFlag::Off);
-  dataSet.AddPointField("cst-field", dataArray3);
+  auto dataArray3 = vtkm::cont::make_ArrayHandle(sim->mass, vtkm::CopyFlag::Off);
+  dataSet.AddPointField("mass", dataArray3);
 
   auto vx = vtkm::cont::make_ArrayHandle(sim->vx, vtkm::CopyFlag::Off); 
   auto vy = vtkm::cont::make_ArrayHandle(sim->vy, vtkm::CopyFlag::Off); 
@@ -178,7 +180,7 @@ void Initialize(int argc, char* argv[], sph::ParticlesData<T> *sim)
   vtkm::cont::ColorTable colorTable("viridis");
   vtkm::rendering::Actor actor(dataSet.GetCellSet(),
                                dataSet.GetCoordinateSystem(),
-                               dataSet.GetField("Density"),
+                               dataSet.GetField("rho"),
                                colorTable);
 
   // Adding Actor to the scene
@@ -190,29 +192,46 @@ void Initialize(int argc, char* argv[], sph::ParticlesData<T> *sim)
   mapper0.SetRadiusDelta(0.05f);
 }
 
-void Execute(int it, int frequency)
+void Execute([[maybe_unused]]int it, [[maybe_unused]]int frequency)
 {
-/*
   std::ostringstream fname;
   if(it % frequency == 0)
     {
-    fname << "insitu." << std::setfill('0') << std::setw(4) << it << ".png";
+#define RENDERING 1 works only in non-strided mode
+#ifdef RENDERING
+    fname << "/dev/shm/insitu." << std::setfill('0') << std::setw(4) << it << ".png";
     vtkm::rendering::View3D view(scene, mapper0, canvas);
 
     view.GetCamera().ResetToBounds(bounds);
+    view.GetCamera().Azimuth(30.0);
+    view.GetCamera().Elevation(30.0);
     view.SetBackgroundColor(vtkm::rendering::Color(1.0f, 1.0f, 1.0f));
     view.SetForegroundColor(vtkm::rendering::Color(0.0f, 0.0f, 0.0f));
     view.Paint();
     view.SaveAs(fname.str());
+#endif
+//#define HISTSAMPLING 1
+#ifdef HISTSAMPLING
+  /********** HistSampling *****************/
+  using AssocType = vtkm::cont::Field::Association;
+  vtkm::filter::resampling::HistSampling histsample;
+  histsample.SetNumberOfBins(128);
+  histsample.SetSamplePercent(0.1);
+  histsample.SetActiveField("rho", AssocType::Points);
+  auto histsampleDataSet = histsample.Execute(dataSet);
+  fname << "/dev/shm/histsample." << std::setfill('0') << std::setw(4) << it << ".vtk";
+  vtkm::io::VTKDataSetWriter histsampleWriter(fname.str());
+  histsampleWriter.SetFileTypeToBinary();
+  histsampleWriter.WriteDataSet(histsampleDataSet);
+#endif
     }
-*/
 }
 
 template<typename T>
 void Finalize(const sph::ParticlesData<T> *sim)
 {
   std::ostringstream fname;
-  fname << "/dev/shm/dummy." << std::setfill('0') << std::setw(2) << sim->par_rank << ".vtk";
+  fname << "/dev/shm/finaldataset." << std::setfill('0') << std::setw(2) << sim->par_rank << ".vtk";
 
   vtkm::io::VTKDataSetWriter writer(fname.str());
   writer.SetFileTypeToBinary();

@@ -63,6 +63,6 @@ elseif(INSITU STREQUAL "VTK-m")
 if(STRIDED_SCALARS)
   target_compile_definitions(dummysph_vtkm PRIVATE STRIDED_SCALARS=1)
 endif()
-  target_link_libraries(dummysph_vtkm MPI::MPI_C MPI::MPI_CXX vtkm::io vtkm::rendering)
+  target_link_libraries(dummysph_vtkm MPI::MPI_C MPI::MPI_CXX vtkm::io vtkm::filter vtkm::rendering)
 endif()
 
