@@ -6,7 +6,8 @@ set(CMAKE_RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/${CMAKE_INSTALL_BINDIR}"
 set(CMAKE_LIBRARY_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/${CMAKE_INSTALL_LIBDIR}")
 
 # since we use C++11 in this example.
-set(CMAKE_CXX_STANDARD 11)
+# set(CMAKE_CXX_STANDARD 11)
+set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)
 
@@ -46,9 +47,11 @@ endif()
   target_link_libraries(dummysph_catalystV2 PRIVATE MPI::MPI_C MPI::MPI_CXX m catalyst::catalyst)
 
 elseif(INSITU STREQUAL "Ascent")
-  find_package(Ascent REQUIRED PATHS "/local/apps/ascent/install/lib/cmake/ascent")
+  # find_package(Ascent REQUIRED PATHS "/local/apps/ascent/install/lib/cmake/ascent")
+  find_package(Ascent REQUIRED PATHS "/capstor/scratch/cscs/piccinal/daint/jf/ascent/install/ascent-checkout")
 
   add_executable(dummysph_ascent ${C_SRCS})
+  target_include_directories(dummysph_ascent PRIVATE ${PROJECT_SOURCE_DIR})
   target_compile_definitions(dummysph_ascent PRIVATE USE_ASCENT=1)
 if(STRIDED_SCALARS)
   target_compile_definitions(dummysph_ascent PRIVATE STRIDED_SCALARS=1)

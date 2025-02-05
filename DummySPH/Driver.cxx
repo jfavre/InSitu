@@ -29,19 +29,27 @@ int main(int argc, char *argv[])
 {
   int it = 0, Niterations = 100, Nparticles = 25;
   int frequency = 10;
+  int rank = 0;
+  const bool quiet = false;
+  std::ofstream nullOutput("/dev/null");
+  std::ostream& output = (quiet || rank) ? nullOutput : std::cout;
+  sphexa::Timer timer(output);
   MPI_Init(&argc, &argv);
+  MPI_Comm_rank(MPI_COMM_WORLD, &rank);
     
   ParticlesData<float> *sim = new(ParticlesData<float>);
   sim->AllocateGridMemory(Nparticles);
 
   viz::init(argc, argv, sim);
 
+  timer.start();
   while (it < Niterations)
     {
     sim->simulate_one_timestep();
     viz::execute(sim, it, frequency);
     it++;
     }
+  timer.step("while");
 
   viz::finalize(sim);
 
