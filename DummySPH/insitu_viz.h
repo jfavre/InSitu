@@ -18,6 +18,8 @@
 #include "VTKmAdaptor.h"
 #endif
 
+#include "timer.hpp"
+
 namespace viz
 {
 
