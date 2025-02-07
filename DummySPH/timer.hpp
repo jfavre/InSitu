@@ -89,7 +89,8 @@ public:
     
             if (iss >> key >> value >> unit) {
                 key.pop_back();  // Remove trailing ':'
-                if (keys.contains(key)) {
+                if (keys.find(key) != keys.end()) {
+                //c++20: if (keys.contains(key)) {
                     memData[key] = value;
                     if (memData.size() == keys.size()) break;
                     // Stop early if all needed keys are found
@@ -118,7 +119,12 @@ public:
     */
 
 private:
-    float stepDuration(auto now) { return std::chrono::duration_cast<Time>(now - tlast).count(); }
+    //c++17 or compile with -fconcepts
+    template <typename T>
+    float stepDuration(T now) {
+        return std::chrono::duration_cast<Time>(now - tlast).count();
+    }
+    //c++20 float stepDuration(auto now) { return std::chrono::duration_cast<Time>(now - tlast).count(); }
     // std::unordered_map<std::string, long> procMemInfo = read_proc_meminfo({"MemTotal", "MemFree", "MemAvailable"}, 3);
 
     std::ostream&                  out;
