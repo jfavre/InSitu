@@ -89,22 +89,7 @@ void Initialize(sph::ParticlesData<T> *sim)
 
   mesh["coordsets/coords/type"] = "explicit";
   mesh["topologies/mesh/coordset"] = "coords";
-#ifdef STRIDED_SCALARS
-  mesh["coordsets/coords/values/x"].set_external_float32_ptr(&sim->scalarsAOS[0].pos[0], sim->n,
-                                                                0 * sizeof(T),
-                                                                sim->NbofScalarfields * sizeof(T));
-  mesh["coordsets/coords/values/y"].set_external_float32_ptr(&sim->scalarsAOS[0].pos[0], sim->n,
-                                                                1 * sizeof(T),
-                                                                sim->NbofScalarfields * sizeof(T));
-  mesh["coordsets/coords/values/z"].set_external_float32_ptr(&sim->scalarsAOS[0].pos[0], sim->n,
-                                                                2 * sizeof(T),
-                                                                sim->NbofScalarfields * sizeof(T));
-#else
-  mesh["coordsets/coords/values/x"].set_external(sim->x);
-  mesh["coordsets/coords/values/y"].set_external(sim->y);
-  mesh["coordsets/coords/values/z"].set_external(sim->z);
-#endif
-
+  
 #define IMPLICIT_CONNECTIVITY_LIST 1 // the connectivity list is not given, but created by vtkm
 #ifdef  IMPLICIT_CONNECTIVITY_LIST
   mesh["topologies/mesh/type"] = "points";
@@ -115,8 +100,19 @@ void Initialize(sph::ParticlesData<T> *sim)
   mesh["topologies/mesh/elements/connectivity"].set(conn);
   mesh["topologies/mesh/elements/shape"] = "point";
 #endif
-  
+
 #ifdef STRIDED_SCALARS
+  // first the coordinates
+  mesh["coordsets/coords/values/x"].set_external_float32_ptr(&sim->scalarsAOS[0].pos[0], sim->n,
+                                                                0 * sizeof(T),
+                                                                sim->NbofScalarfields * sizeof(T));
+  mesh["coordsets/coords/values/y"].set_external_float32_ptr(&sim->scalarsAOS[0].pos[0], sim->n,
+                                                                1 * sizeof(T),
+                                                                sim->NbofScalarfields * sizeof(T));
+  mesh["coordsets/coords/values/z"].set_external_float32_ptr(&sim->scalarsAOS[0].pos[0], sim->n,
+                                                                2 * sizeof(T),
+                                                                sim->NbofScalarfields * sizeof(T));
+  // then the variables
   addStridedField(mesh, "rho",  &sim->scalarsAOS[0].rho, sim->n, 0, sim->NbofScalarfields);
   addStridedField(mesh, "temp", &sim->scalarsAOS[0].temp, sim->n, 0, sim->NbofScalarfields);
   addStridedField(mesh, "mass", &sim->scalarsAOS[0].mass, sim->n, 0, sim->NbofScalarfields);
@@ -142,8 +138,14 @@ void Initialize(sph::ParticlesData<T> *sim)
                                                                 sim->NbofScalarfields * sizeof(T));
   mesh["fields/velocity/volume_dependent"].set("false");
   */
-
+  
 #else
+  // first the coordinates
+  mesh["coordsets/coords/values/x"].set_external(sim->x);
+  mesh["coordsets/coords/values/y"].set_external(sim->y);
+  mesh["coordsets/coords/values/z"].set_external(sim->z);
+  
+  // then the variables
   addField(mesh, "rho" , sim->rho.data(), sim->n);
   addField(mesh, "temp", sim->temp.data(), sim->n);
   addField(mesh, "mass", sim->mass.data(), sim->n);
