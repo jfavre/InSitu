@@ -39,7 +39,7 @@ given std::vector<T> x, y, z;         // Positions
 ****************************************/
 namespace VTKmAdaptor
 {
-  vtkm::rendering::CanvasRayTracer   canvas(1080, 1080);
+  vtkm::rendering::CanvasRayTracer   canvas(1024,1024);
   vtkm::rendering::Scene             scene;
   vtkm::rendering::MapperPoint       mapper0; // rendering crash
   vtkm::rendering::MapperRayTracer   mapper1; // no rendering errors but empty output 
@@ -154,24 +154,26 @@ void Initialize(int argc, char* argv[], sph::ParticlesData<T> *sim)
   auto dataArray1 = vtkm::cont::make_ArrayHandle(sim->rho, vtkm::CopyFlag::Off);
   dataSet.AddPointField("rho", dataArray1);
   
-  auto dataArray2 = vtkm::cont::make_ArrayHandle(sim->temp, vtkm::CopyFlag::Off);
-  dataSet.AddPointField("temp", dataArray2);
+  //auto dataArray2 = vtkm::cont::make_ArrayHandle(sim->temp, vtkm::CopyFlag::Off);
+  //dataSet.AddPointField("temp", dataArray2);
   
-  auto dataArray3 = vtkm::cont::make_ArrayHandle(sim->mass, vtkm::CopyFlag::Off);
-  dataSet.AddPointField("mass", dataArray3);
+  //auto dataArray3 = vtkm::cont::make_ArrayHandle(sim->mass, vtkm::CopyFlag::Off);
+  //dataSet.AddPointField("mass", dataArray3);
 
+  /*
   auto vx = vtkm::cont::make_ArrayHandle(sim->vx, vtkm::CopyFlag::Off); 
   auto vy = vtkm::cont::make_ArrayHandle(sim->vy, vtkm::CopyFlag::Off); 
   auto vz = vtkm::cont::make_ArrayHandle(sim->vz, vtkm::CopyFlag::Off);
-  /* first method to view a vector field from its base components */
+  // first method to view a vector field from its base components
   auto velArray = vtkm::cont::make_ArrayHandleCompositeVector(vx, vy, vz);
   vtkm::cont::printSummary_ArrayHandle(velArray, std::cout);
   dataSet.AddPointField("velocity", velArray);
 
-  /* second method to view a vector field from its base components */
+  // second method to view a vector field from its base components
   auto velArray2 = vtkm::cont::make_ArrayHandleSOA(vx, vy, vz);
   vtkm::cont::printSummary_ArrayHandle(velArray2, std::cout);
   dataSet.AddPointField("velocity2", velArray2);
+   */
 #endif
 
   dataSet.PrintSummary(std::cout);
@@ -227,15 +229,18 @@ void Execute([[maybe_unused]]int it, [[maybe_unused]]int frequency)
     }
 }
 
+//#define DATADUMP 1
 template<typename T>
 void Finalize(const sph::ParticlesData<T> *sim)
 {
+#ifdef DATADUMP
   std::ostringstream fname;
   fname << "/dev/shm/finaldataset." << std::setfill('0') << std::setw(2) << sim->par_rank << ".vtk";
 
   vtkm::io::VTKDataSetWriter writer(fname.str());
   writer.SetFileTypeToBinary();
   writer.WriteDataSet(dataSet);
+#endif
 }
 }
 #endif

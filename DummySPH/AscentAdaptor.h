@@ -49,7 +49,7 @@ void addStridedField(conduit::Node& mesh,
     mesh["fields/" + name + "/volume_dependent"].set("false");
 }
 
-#define IMPLICIT_CONNECTIVITY_LIST 1 // the connectivity list is not given, but created by vtkm
+
 
 template<typename T>
 void Initialize(sph::ParticlesData<T> *sim)
@@ -90,14 +90,14 @@ void Initialize(sph::ParticlesData<T> *sim)
   mesh["coordsets/coords/type"] = "explicit";
   mesh["topologies/mesh/coordset"] = "coords";
 #ifdef STRIDED_SCALARS
-  mesh["coordsets/coords/values/x"].set_external_float32_ptr(&sim->scalarsAOS[0].mass, sim->n,
+  mesh["coordsets/coords/values/x"].set_external_float32_ptr(&sim->scalarsAOS[0].pos[0], sim->n,
+                                                                0 * sizeof(T),
+                                                                sim->NbofScalarfields * sizeof(T));
+  mesh["coordsets/coords/values/y"].set_external_float32_ptr(&sim->scalarsAOS[0].pos[0], sim->n,
                                                                 1 * sizeof(T),
                                                                 sim->NbofScalarfields * sizeof(T));
-  mesh["coordsets/coords/values/y"].set_external_float32_ptr(&sim->scalarsAOS[0].mass, sim->n,
+  mesh["coordsets/coords/values/z"].set_external_float32_ptr(&sim->scalarsAOS[0].pos[0], sim->n,
                                                                 2 * sizeof(T),
-                                                                sim->NbofScalarfields * sizeof(T));
-  mesh["coordsets/coords/values/z"].set_external_float32_ptr(&sim->scalarsAOS[0].mass, sim->n,
-                                                                3 * sizeof(T),
                                                                 sim->NbofScalarfields * sizeof(T));
 #else
   mesh["coordsets/coords/values/x"].set_external(sim->x);
@@ -105,7 +105,8 @@ void Initialize(sph::ParticlesData<T> *sim)
   mesh["coordsets/coords/values/z"].set_external(sim->z);
 #endif
 
-#ifdef IMPLICIT_CONNECTIVITY_LIST
+#define IMPLICIT_CONNECTIVITY_LIST 1 // the connectivity list is not given, but created by vtkm
+#ifdef  IMPLICIT_CONNECTIVITY_LIST
   mesh["topologies/mesh/type"] = "points";
 #else
   mesh["topologies/mesh/type"] = "unstructured";
@@ -118,7 +119,7 @@ void Initialize(sph::ParticlesData<T> *sim)
 #ifdef STRIDED_SCALARS
   addStridedField(mesh, "rho",  &sim->scalarsAOS[0].rho, sim->n, 0, sim->NbofScalarfields);
   addStridedField(mesh, "temp", &sim->scalarsAOS[0].temp, sim->n, 0, sim->NbofScalarfields);
-  //addStridedField(mesh, "mass", &sim->scalarsAOS[0].mass, sim->n, 0, sim->NbofScalarfields);
+  addStridedField(mesh, "mass", &sim->scalarsAOS[0].mass, sim->n, 0, sim->NbofScalarfields);
 
   addStridedField(mesh, "x", &(sim->scalarsAOS[0].pos[0]), sim->n, 0, sim->NbofScalarfields);
   addStridedField(mesh, "y", &(sim->scalarsAOS[0].pos[0]), sim->n, 1, sim->NbofScalarfields);
@@ -134,7 +135,7 @@ void Initialize(sph::ParticlesData<T> *sim)
                                                                 0,
                                                                 sim->NbofScalarfields * sizeof(T));
   mesh["fields/velocity/values/v"].set_external_float32_ptr(&(sim->scalarsAOS[0].vel[0]), sim->n,
-                                                /                1 * sizeof(T),
+                                                                1 * sizeof(T),
                                                                 sim->NbofScalarfields * sizeof(T));
   mesh["fields/velocity/values/w"].set_external_float32_ptr(&(sim->scalarsAOS[0].vel[0]), sim->n,
                                                                 2 * sizeof(T),
@@ -155,20 +156,24 @@ void Initialize(sph::ParticlesData<T> *sim)
   addField(mesh, "y", sim->y.data(), sim->n);
   addField(mesh, "z", sim->z.data(), sim->n);
 
-  //*
+  /*
   mesh["fields/velocity/association"] = "vertex";
   mesh["fields/velocity/topology"]    = "mesh";
   mesh["fields/velocity/values/u"].set_external(sim->vx.data(), sim->n);
   mesh["fields/velocity/values/v"].set_external(sim->vy.data(), sim->n);
   mesh["fields/velocity/values/w"].set_external(sim->vz.data(), sim->n);
   mesh["fields/velocity/volume_dependent"].set("false");
-  //*/
+  */
 #endif
 
   if(!conduit::blueprint::mesh::verify(mesh,verify_info))
   {
     CONDUIT_INFO("blueprint verify failed!" + verify_info.to_json());
   }
+  if(conduit::blueprint::mcarray::is_interleaved(mesh["coordsets/coords/values"]))
+    std::cout << "Conduit Blueprint check found interleaved coordinates" << std::endl;
+  else
+    std::cout << "Conduit Blueprint check found contiguous coordinates" << std::endl;
   mesh.print();
 // Create an action that tells Ascent to:
 //  add a scene (s1) with one plot (p1)
@@ -218,15 +223,19 @@ void Initialize(sph::ParticlesData<T> *sim)
   */
 }
 
-void Execute()
+void Execute([[maybe_unused]]int it, [[maybe_unused]]int frequency)
 {
-  ascent.publish(mesh);
-  ascent.execute(actions);
+  if(it % frequency == 0)
+    {
+    ascent.publish(mesh);
+    ascent.execute(actions);
+    }
 }
 
+//#define DATADUMP 1
 void Finalize()
 {
-
+#ifdef DATADUMP
   conduit::Node save_data_actions;
   conduit::Node &add_act = save_data_actions.append(); 
   add_act["action"] = "add_extracts";
@@ -238,7 +247,7 @@ void Finalize()
   ascent.publish(mesh);
   ascent.execute(save_data_actions);
   ascent.close();
-
+#endif
 }
 
 }

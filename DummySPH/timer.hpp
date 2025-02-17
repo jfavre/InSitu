@@ -61,7 +61,7 @@ public:
         //
         auto memInfo = read_proc_meminfo({"MemTotal", "MemFree", "MemAvailable"}, 3);
         if (!name.empty()) {
-            out << "/ " << memInfo["MemFree"] << " / " << memInfo["MemAvailable"] << " / " << memInfo["MemTotal"] << " kB" << std::endl;
+            out << "/ MemFree = " << memInfo["MemFree"] << " / MemAvailable = " << memInfo["MemAvailable"] << " / MemTotal = " << memInfo["MemTotal"] << " kB" << std::endl;
         }
     }
 

@@ -27,8 +27,8 @@ using namespace sph;
 
 int main(int argc, char *argv[])
 {
-  int it = 0, Niterations = 100, Nparticles = 25;
-  int frequency = 10;
+  int it = 0, Niterations = 1, Nparticles = 100; // actually Nparticles^3
+  int frequency = 1;
   int rank = 0;
   const bool quiet = false;
   std::ofstream nullOutput("/dev/null");
@@ -43,13 +43,14 @@ int main(int argc, char *argv[])
   viz::init(argc, argv, sim);
 
   timer.start();
+  timer.step("post-init");
   while (it < Niterations)
     {
     sim->simulate_one_timestep();
-    viz::execute(sim, it, frequency);
     it++;
+    viz::execute(sim, it, frequency);
     }
-  timer.step("while");
+  timer.step("post-exec");
 
   viz::finalize(sim);
 

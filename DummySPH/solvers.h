@@ -11,6 +11,54 @@
 #include <stdlib.h>
 #include <mpi.h>
 
+//-----------------------------------------------------------------------------
+// memory helpers
+//-----------------------------------------------------------------------------
+
+//-----------------------------------------------------------------------------
+void *
+device_alloc(int size)
+{
+#if defined (CAMP_HAVE_CUDA)
+    void *buff;
+    cudaMalloc(&buff, size);
+    return buff;
+#else
+    return malloc(size);
+#endif
+}
+
+//-----------------------------------------------------------------------------
+void
+device_free(void *ptr)
+{
+#if defined (CAMP_HAVE_CUDA)
+    cudaFree(ptr);
+    free(ptr);
+#endif
+}
+
+//-----------------------------------------------------------------------------
+void
+copy_from_device_to_host(void *dest, void *src, int size)
+{
+#if defined (ASCENT_CUDA_ENABLED)
+   cudaMemcpy(dest, src, size, cudaMemcpyDeviceToHost);
+   memcpy(dest,src,size);
+#endif
+}
+
+
+//-----------------------------------------------------------------------------
+void
+copy_from_host_to_device(void *dest, void *src, int size)
+{
+#if defined (ASCENT_CUDA_ENABLED)
+   cudaMemcpy(dest, src, size, cudaMemcpyHostToDevice);
+   memcpy(dest,src,size);
+#endif
+}
+
 namespace sph
 {
 template<typename T>
@@ -32,9 +80,6 @@ class ParticlesData
       T vel[3];
       T rho;
       T temp;
-      //T hsmooth;
-      //T metals;
-      //T phi;
     };
     std::vector<tipsySph> scalarsAOS;
     static constexpr int NbofScalarfields = sizeof(tipsySph)/sizeof(T);
@@ -143,19 +188,21 @@ class ParticlesData
     {
     this->iteration++;
     this->time = this->iteration * 0.01; // fixed, arbitrary timestep value
+    T timeoffset = 0.3*sin((this->iteration * M_PI) / 180.0); // fixed, arbitrary timestep value
+    //std::cout << "timeoffset " << timeoffset << std::endl;
     for (size_t i=0; i < this->n; i++)
       {
 #ifdef STRIDED_SCALARS
-      T R = ((this->scalarsAOS[i].pos[0]+this->time) * (this->scalarsAOS[i].pos[0]+this->time) +
-             (this->scalarsAOS[i].pos[1]+this->time) * (this->scalarsAOS[i].pos[1]+this->time) +
-             (this->scalarsAOS[i].pos[2]+this->time) * (this->scalarsAOS[i].pos[2]+this->time));
+      T R = ((this->scalarsAOS[i].pos[0]+timeoffset) * (this->scalarsAOS[i].pos[0]+timeoffset) +
+             (this->scalarsAOS[i].pos[1]+timeoffset) * (this->scalarsAOS[i].pos[1]+timeoffset) +
+             (this->scalarsAOS[i].pos[2]+timeoffset) * (this->scalarsAOS[i].pos[2]+timeoffset));
       this->scalarsAOS[i].rho = R;
       this->scalarsAOS[i].temp = sqrt(R);
-      //this->scalarsAOS[i].mass = cstMass;
+      this->scalarsAOS[i].mass = cstMass;
 #else
-      T R = ((this->x[i]+this->time)*(this->x[i]+this->time) + /* rho is equal to radius_square */
-             (this->y[i]+this->time)*(this->y[i]+this->time) +
-             (this->z[i]+this->time)*(this->z[i]+this->time));
+      T R = ((this->x[i]+timeoffset)*(this->x[i]+timeoffset) + /* rho is equal to radius_square */
+             (this->y[i]+timeoffset)*(this->y[i]+timeoffset) +
+             (this->z[i]+timeoffset)*(this->z[i]+timeoffset));
       this->rho[i] = R;
       this->temp[i] = sqrt(R);
       // all variables remain constant over time except "rho" and "temp"
