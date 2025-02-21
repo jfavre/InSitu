@@ -6,11 +6,65 @@
 #ifdef USE_CATALYST
 #include <catalyst.hpp>
 #include <conduit_blueprint.h>
-#include "CatalystAdaptor.h"
+typedef conduit_cpp::Node ConduitNode;
 #endif
 
 #ifdef USE_ASCENT
 #include <ascent/ascent.hpp>
+typedef conduit::Node ConduitNode;
+#endif
+
+#if defined(USE_CATALYST) || defined(USE_ASCENT)
+template<typename T>
+void addField(ConduitNode& mesh, const std::string& name, T* field, const size_t N)
+{
+    mesh["fields/" + name + "/association"] = "vertex";
+    mesh["fields/" + name + "/topology"]    = "mesh";
+    mesh["fields/" + name + "/values"].set_external(field, N);
+    mesh["fields/" + name + "/volume_dependent"].set("false");
+}
+
+template<typename T>
+void addStridedField(ConduitNode& mesh,
+                     const std::string& name,
+                     T* field,
+                     const size_t N,  // num_elements
+                     const int offset,
+                     const int stride)
+{
+    mesh["fields/" + name + "/association"] = "vertex";
+    mesh["fields/" + name + "/topology"]    = "mesh";
+    mesh["fields/" + name + "/values"].set_external(field, N,
+                                                    offset * sizeof(T),
+                                                    stride * sizeof(T));
+    mesh["fields/" + name + "/volume_dependent"].set("false");
+}
+
+template<typename T>
+void addCoordinates(ConduitNode& mesh, std::vector<T> &x, std::vector<T> &y, std::vector<T> &z)
+{
+  mesh["coordsets/coords/values/x"].set_external(x);
+  mesh["coordsets/coords/values/y"].set_external(y);
+  mesh["coordsets/coords/values/z"].set_external(z);
+}
+
+template<typename T>
+void addStridedCoordinates(ConduitNode& mesh,
+                           T* xyz,
+                           const size_t N,  /* num_elements */
+                           const int stride)
+{
+  mesh["coordsets/coords/values/x"].set_external(xyz, N, 0 * sizeof(T), stride * sizeof(T));
+  mesh["coordsets/coords/values/y"].set_external(xyz, N, 1 * sizeof(T), stride * sizeof(T));
+  mesh["coordsets/coords/values/z"].set_external(xyz, N, 2 * sizeof(T), stride * sizeof(T));
+}
+#endif
+  
+#ifdef USE_CATALYST
+#include "CatalystAdaptor.h"
+#endif
+
+#ifdef USE_ASCENT
 #include "AscentAdaptor.h"
 #endif
 
@@ -19,6 +73,8 @@
 #endif
 
 #include "timer.hpp"
+
+
 
 namespace viz
 {
@@ -51,7 +107,7 @@ void execute([[maybe_unused]] sph::ParticlesData<T> *sim,
   CatalystAdaptor::Execute(sim);
 #endif
 #ifdef USE_ASCENT
-  AscentAdaptor::Execute(iteration, frequency);
+  AscentAdaptor::Execute(iteration, frequency, sim);
 #endif
 #ifdef USE_VTKM
   VTKmAdaptor::Execute(iteration, frequency);

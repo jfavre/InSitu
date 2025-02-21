@@ -1,12 +1,20 @@
 
 cmake -B buildCatalyst2 -S . \
-       -DINSITU=Catalyst \
-       -Dcatalyst_DIR=/local/apps/catalyst-v2.0.0-install/lib/cmake/catalyst-2.0
+      -DSTRIDED_SCALARS:BOOL=OFF \
+      -DINSITU=Catalyst \
+      -Dcatalyst_DIR=`spack location -i libcatalyst`/lib/cmake/catalyst-2.0
 cmake --build buildCatalyst2
 
 
 cmake -B buildAscent -S . \
+      -DSTRIDED_SCALARS:BOOL=OFF \
       -DINSITU=Ascent \
-      -DAscent_DIR=/local/apps/Ascent/install/ascent-develop/lib/cmake/ascent
+      -DAscent_DIR=/local/apps/Ascent/install/ascent-checkout/lib/cmake/ascent
 cmake --build buildAscent
 
+cmake -B buildAscent-Cuda -S . \
+      -DSTRIDED_SCALARS:BOOL=OFF \
+      -DCMAKE_CUDA_HOST_COMPILER=/usr/bin/g++-12 \
+      -DINSITU=Ascent \
+      -DAscent_DIR=/local/apps/Ascent-cuda/install/ascent-checkout/lib/cmake/ascent
+cmake --build buildAscent-Cuda

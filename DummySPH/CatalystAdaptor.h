@@ -20,7 +20,7 @@ namespace CatalystAdaptor
  */
 void Initialize(int argc, char* argv[])
 {
-  conduit_cpp::Node node;
+  ConduitNode node;
   for (int cc = 1; cc < argc; ++cc)
   {
     if(strcmp(argv[cc], "--help") == 0 || strcmp(argv[cc], "-h") == 0)
@@ -60,38 +60,14 @@ void Initialize(int argc, char* argv[])
     std::cerr << "ERROR: Failed to initialize Catalyst: " << err << std::endl;
 }
 
-template<typename T>
-void addField(conduit_cpp::Node& mesh, const std::string& name, T* field, const size_t N)
-{
-    mesh["fields/" + name + "/association"] = "vertex";
-    mesh["fields/" + name + "/topology"]    = "mesh";
-    mesh["fields/" + name + "/values"].set_external(field, N);
-    mesh["fields/" + name + "/volume_dependent"].set("false");
-}
 
-template<typename T>
-void addStridedField(conduit_cpp::Node& mesh,
-                     const std::string& name,
-                     T* field,
-                     const size_t N,  /* num_elements */
-                     const int offset,
-                     const int stride)
-{
-    mesh["fields/" + name + "/association"] = "vertex";
-    mesh["fields/" + name + "/topology"]    = "mesh";
-    mesh["fields/" + name + "/values"].set_external_float32_ptr(field,
-                                                                N,
-                                                                offset * sizeof(T),
-                                                                stride * sizeof(T));
-    mesh["fields/" + name + "/volume_dependent"].set("false");
-}
 
 //#define IMPLICIT_CONNECTIVITY_LIST 1
 
 template<typename T>
 void Execute(sph::ParticlesData<T> *sim)
 {
-  conduit_cpp::Node exec_params;
+  ConduitNode exec_params;
 
   auto state = exec_params["catalyst/state"];
   state["timestep"].set(sim->iteration);
@@ -111,19 +87,9 @@ void Execute(sph::ParticlesData<T> *sim)
   mesh["coordsets/coords/type"] = "explicit";
   mesh["topologies/mesh/coordset"] = "coords";
 #ifdef STRIDED_SCALARS
-  mesh["coordsets/coords/values/x"].set_external_float32_ptr(&sim->scalarsAOS[0].mass, sim->n,
-                                                                1 * sizeof(T),
-                                                                sim->NbofScalarfields * sizeof(T));
-  mesh["coordsets/coords/values/y"].set_external_float32_ptr(&sim->scalarsAOS[0].mass, sim->n,
-                                                                2 * sizeof(T),
-                                                                sim->NbofScalarfields * sizeof(T));
-  mesh["coordsets/coords/values/z"].set_external_float32_ptr(&sim->scalarsAOS[0].mass, sim->n,
-                                                                3 * sizeof(T),
-                                                                sim->NbofScalarfields * sizeof(T));
+  addStridedCoordinates(mesh, &sim->scalarsAOS[0].pos[0], sim->n, sim->NbofScalarfields);
 #else
-  mesh["coordsets/coords/values/x"].set_external(sim->x);
-  mesh["coordsets/coords/values/y"].set_external(sim->y);
-  mesh["coordsets/coords/values/z"].set_external(sim->z);
+  addCoordinates(mesh, sim->x, sim->y, sim->z);
 #endif
 
 #ifdef IMPLICIT_CONNECTIVITY_LIST
@@ -166,6 +132,12 @@ void Execute(sph::ParticlesData<T> *sim)
 
 #else
   addField(mesh, "rho" , sim->rho.data(), sim->n);
+  addField(mesh, "x" , sim->x.data(), sim->n);
+  addField(mesh, "y" , sim->y.data(), sim->n);
+  addField(mesh, "z" , sim->z.data(), sim->n);
+  addField(mesh, "vx" , sim->vx.data(), sim->n);
+  addField(mesh, "vy" , sim->vy.data(), sim->n);
+  addField(mesh, "vz" , sim->vz.data(), sim->n);
 
   mesh["fields/velocity/association"] = "vertex";
   mesh["fields/velocity/topology"]    = "mesh";
@@ -175,7 +147,7 @@ void Execute(sph::ParticlesData<T> *sim)
   mesh["fields/velocity/volume_dependent"].set("false");
 #endif
 
-  conduit_cpp::Node verify_info;
+  ConduitNode verify_info;
   if (!conduit_blueprint_verify("mesh", conduit_cpp::c_node(&mesh), conduit_cpp::c_node(&verify_info)))
     std::cerr << "ERROR: blueprint verify failed!" + verify_info.to_json() << std::endl;
   //else std::cerr << "PASS: blueprint verify passed!"<< std::endl;
@@ -191,7 +163,7 @@ void Execute(sph::ParticlesData<T> *sim)
 
 void Finalize()
 {
-  conduit_cpp::Node node;
+  ConduitNode node;
   catalyst_status err = catalyst_finalize(conduit_cpp::c_node(&node));
   if (err != catalyst_status_ok)
     std::cerr << "ERROR: Failed to finalize Catalyst: " << err << std::endl;

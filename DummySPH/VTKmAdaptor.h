@@ -22,6 +22,7 @@
 #include <vtkm/rendering/MapperWireframer.h>
 #include <vtkm/rendering/MapperGlyphScalar.h>
 #include <vtkm/filter/resampling/HistSampling.h>
+#include <vtkm/filter/entity_extraction/ThresholdPoints.h>
 #include <vtkm/rendering/Scene.h>
 #include <vtkm/rendering/View3D.h>
 /****************************************
@@ -151,8 +152,12 @@ void Initialize(int argc, char* argv[], sph::ParticlesData<T> *sim)
 #else
   std::cout << "creating fields with independent (stride=1) access\n";
 //https://vtk-m.readthedocs.io/en/stable/basic-array-handles.html#ex-arrayhandlefromvector
-  auto dataArray1 = vtkm::cont::make_ArrayHandle(sim->rho, vtkm::CopyFlag::Off);
+
+  auto dataArray1 = vtkm::cont::make_ArrayHandle<T>(sim->rho, vtkm::CopyFlag::Off);
   dataSet.AddPointField("rho", dataArray1);
+
+  auto dataArrayx = vtkm::cont::make_ArrayHandle<T>(sim->x, vtkm::CopyFlag::Off);
+  dataSet.AddPointField("x", dataArrayx);
   
   //auto dataArray2 = vtkm::cont::make_ArrayHandle(sim->temp, vtkm::CopyFlag::Off);
   //dataSet.AddPointField("temp", dataArray2);
@@ -199,8 +204,8 @@ void Execute([[maybe_unused]]int it, [[maybe_unused]]int frequency)
   std::ostringstream fname;
   if(it % frequency == 0)
     {
-#define RENDERING 1 works only in non-strided mode
-#ifdef RENDERING
+#define RENDERING 1 // works only in non-strided mode
+#ifdef  RENDERING
     fname << "/dev/shm/insitu." << std::setfill('0') << std::setw(4) << it << ".png";
     vtkm::rendering::View3D view(scene, mapper0, canvas);
 
@@ -212,19 +217,40 @@ void Execute([[maybe_unused]]int it, [[maybe_unused]]int frequency)
     view.Paint();
     view.SaveAs(fname.str());
 #endif
-//#define HISTSAMPLING 1
-#ifdef HISTSAMPLING
+
+#define HISTSAMPLING 1
+#ifdef  HISTSAMPLING
   /********** HistSampling *****************/
   using AssocType = vtkm::cont::Field::Association;
   vtkm::filter::resampling::HistSampling histsample;
   histsample.SetNumberOfBins(128);
-  histsample.SetSamplePercent(0.1);
+  histsample.SetSampleFraction(0.1);
   histsample.SetActiveField("rho", AssocType::Points);
   auto histsampleDataSet = histsample.Execute(dataSet);
+  fname.str("");
   fname << "/dev/shm/histsample." << std::setfill('0') << std::setw(4) << it << ".vtk";
+  std::cerr << "writing " << fname.str() << std::endl;
   vtkm::io::VTKDataSetWriter histsampleWriter(fname.str());
   histsampleWriter.SetFileTypeToBinary();
   histsampleWriter.WriteDataSet(histsampleDataSet);
+#endif
+
+#define CROSS_SLICING 1
+#ifdef  CROSS_SLICING
+  vtkm::filter::entity_extraction::ThresholdPoints thresholdPoints;
+  // 
+  thresholdPoints.SetThresholdBetween(-0.1, 0.1);
+  thresholdPoints.SetActiveField("x");
+  thresholdPoints.SetFieldsToPass("rho");
+  thresholdPoints.SetCompactPoints(true);
+  auto output = thresholdPoints.Execute(dataSet);
+  
+  fname.str("");
+  fname << "/dev/shm/thresholdPoints." << std::setfill('0') << std::setw(4) << it << ".vtk";
+  std::cerr << "writing " << fname.str() << std::endl;
+  vtkm::io::VTKDataSetWriter writer(fname.str());
+  writer.SetFileTypeToBinary();
+  writer.WriteDataSet(output);
 #endif
     }
 }

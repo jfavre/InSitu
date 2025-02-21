@@ -27,8 +27,8 @@ using namespace sph;
 
 int main(int argc, char *argv[])
 {
-  int it = 0, Niterations = 1, Nparticles = 100; // actually Nparticles^3
-  int frequency = 1;
+  int it = 0, Niterations = 5, Nparticles = 500; // actually Nparticles^3
+  int frequency = 5;
   int rank = 0;
   const bool quiet = false;
   std::ofstream nullOutput("/dev/null");
@@ -37,7 +37,7 @@ int main(int argc, char *argv[])
   MPI_Init(&argc, &argv);
   MPI_Comm_rank(MPI_COMM_WORLD, &rank);
     
-  ParticlesData<float> *sim = new(ParticlesData<float>);
+  ParticlesData<double> *sim = new(ParticlesData<double>);
   sim->AllocateGridMemory(Nparticles);
 
   viz::init(argc, argv, sim);

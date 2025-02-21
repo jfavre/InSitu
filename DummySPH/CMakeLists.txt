@@ -5,10 +5,8 @@ include (GNUInstallDirs)
 set(CMAKE_RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/${CMAKE_INSTALL_BINDIR}")
 set(CMAKE_LIBRARY_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/${CMAKE_INSTALL_LIBDIR}")
 
-# since we use C++11 in this example.
-# set(CMAKE_CXX_STANDARD 11)
 set(CMAKE_CXX_STANDARD 17)
-# set(CMAKE_CXX_STANDARD 20)
+
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)
 
@@ -60,6 +58,13 @@ endif()
   target_link_libraries(dummysph_ascent MPI::MPI_C MPI::MPI_CXX ascent::ascent_mpi)
 
 elseif(INSITU STREQUAL "VTK-m")
+#set_source_files_properties(${C_SRCS} PROPERTIES LANGUAGE CUDA)
+if(VTKm_ENABLE_CUDA)
+  find_package(CUDA REQUIRED)
+endif()
+if(CUDA_FOUND)
+  set_source_files_properties(${C_SRCS} PROPERTIES LANGUAGE CUDA)
+endif()
   find_package(VTKm REQUIRED QUIET)
 
   add_executable(dummysph_vtkm ${C_SRCS})

@@ -11,6 +11,7 @@ VTKHDataAdapter::PointsImplicitBlueprintToVTKmDataSet()
 */
 
 #include "conduit_blueprint.hpp"
+#include "cuda_helpers.cpp"
 #include <cstring>
 #include <fstream>
 #include <iostream>
@@ -21,40 +22,13 @@ VTKHDataAdapter::PointsImplicitBlueprintToVTKmDataSet()
 namespace AscentAdaptor
 {
   ascent::Ascent ascent;
-  conduit::Node  mesh;
-  conduit::Node  actions;
-
-template<typename T>
-void addField(conduit::Node& mesh, const std::string& name, T* field, const size_t N)
-{
-    mesh["fields/" + name + "/association"] = "vertex";
-    mesh["fields/" + name + "/topology"]    = "mesh";
-    mesh["fields/" + name + "/values"].set_external(field, N);
-    mesh["fields/" + name + "/volume_dependent"].set("false");
-}
-
-template<typename T>
-void addStridedField(conduit::Node& mesh,
-                     const std::string& name,
-                     T* field,
-                     const size_t N,  /* num_elements */
-                     const int offset,
-                     const int stride)
-{
-    mesh["fields/" + name + "/association"] = "vertex";
-    mesh["fields/" + name + "/topology"]    = "mesh";
-    mesh["fields/" + name + "/values"].set_external_float32_ptr(field, N,
-                                                                offset * sizeof(T),
-                                                                stride * sizeof(T));
-    mesh["fields/" + name + "/volume_dependent"].set("false");
-}
-
-
+  ConduitNode  mesh;
+  ConduitNode  actions;
 
 template<typename T>
 void Initialize(sph::ParticlesData<T> *sim)
 {
-  conduit::Node n;
+  ConduitNode n;
   ascent::about(n);
   // only run this test if ascent was built with vtkm support
   if(n["runtimes/ascent/vtkm/status"].as_string() == "disabled")
@@ -62,17 +36,15 @@ void Initialize(sph::ParticlesData<T> *sim)
     ASCENT_INFO("Ascent vtkm support disabled, skipping test");
     return;
   }
-  
+
   std::string output_path = "datasets";
   ASCENT_INFO("Creating output folder: " + output_path);
   if(!conduit::utils::is_directory(output_path))
   {
     conduit::utils::create_directory(output_path);
   }
-  // remove old images before rendering
 
-
-  conduit::Node ascent_options;
+  ConduitNode ascent_options;
   ascent_options["default_dir"] = "./datasets";
   ascent_options["mpi_comm"] = MPI_Comm_c2f(MPI_COMM_WORLD);
   ascent_options["ascent_info"] = "verbose";
@@ -103,51 +75,43 @@ void Initialize(sph::ParticlesData<T> *sim)
 
 #ifdef STRIDED_SCALARS
   // first the coordinates
-  mesh["coordsets/coords/values/x"].set_external_float32_ptr(&sim->scalarsAOS[0].pos[0], sim->n,
-                                                                0 * sizeof(T),
-                                                                sim->NbofScalarfields * sizeof(T));
-  mesh["coordsets/coords/values/y"].set_external_float32_ptr(&sim->scalarsAOS[0].pos[0], sim->n,
-                                                                1 * sizeof(T),
-                                                                sim->NbofScalarfields * sizeof(T));
-  mesh["coordsets/coords/values/z"].set_external_float32_ptr(&sim->scalarsAOS[0].pos[0], sim->n,
-                                                                2 * sizeof(T),
-                                                                sim->NbofScalarfields * sizeof(T));
+  addStridedCoordinates(mesh, &sim->scalarsAOS[0].pos[0], sim->n, sim->NbofScalarfields);
+  
   // then the variables
-  addStridedField(mesh, "rho",  &sim->scalarsAOS[0].rho, sim->n, 0, sim->NbofScalarfields);
-  addStridedField(mesh, "temp", &sim->scalarsAOS[0].temp, sim->n, 0, sim->NbofScalarfields);
-  addStridedField(mesh, "mass", &sim->scalarsAOS[0].mass, sim->n, 0, sim->NbofScalarfields);
+  addStridedField(mesh, "rho",         &sim->scalarsAOS[0].rho,      sim->n, 0, sim->NbofScalarfields);
+  addStridedField(mesh, "Temperature", &sim->scalarsAOS[0].temp,     sim->n, 0, sim->NbofScalarfields);
+  addStridedField(mesh, "mass",        &sim->scalarsAOS[0].mass,     sim->n, 0, sim->NbofScalarfields);
 
-  addStridedField(mesh, "x", &(sim->scalarsAOS[0].pos[0]), sim->n, 0, sim->NbofScalarfields);
-  addStridedField(mesh, "y", &(sim->scalarsAOS[0].pos[0]), sim->n, 1, sim->NbofScalarfields);
-  addStridedField(mesh, "z", &(sim->scalarsAOS[0].pos[0]), sim->n, 2, sim->NbofScalarfields);
-  addStridedField(mesh, "vx", &(sim->scalarsAOS[0].vel[0]), sim->n, 0, sim->NbofScalarfields);
-  addStridedField(mesh, "vy", &(sim->scalarsAOS[0].vel[0]), sim->n, 1, sim->NbofScalarfields);
-  addStridedField(mesh, "vz", &(sim->scalarsAOS[0].vel[0]), sim->n, 2, sim->NbofScalarfields);
+  addStridedField(mesh, "x",           &(sim->scalarsAOS[0].pos[0]), sim->n, 0, sim->NbofScalarfields);
+  addStridedField(mesh, "y",           &(sim->scalarsAOS[0].pos[1]), sim->n, 0, sim->NbofScalarfields);
+  addStridedField(mesh, "z",           &(sim->scalarsAOS[0].pos[2]), sim->n, 0, sim->NbofScalarfields);
+
+  addStridedField(mesh, "vx",          &(sim->scalarsAOS[0].vel[0]), sim->n, 0, sim->NbofScalarfields);
+  addStridedField(mesh, "vy",          &(sim->scalarsAOS[0].vel[1]), sim->n, 0, sim->NbofScalarfields);
+  addStridedField(mesh, "vz",          &(sim->scalarsAOS[0].vel[2]), sim->n, 0, sim->NbofScalarfields);
 
   /* there seems to be an offset I don't understand
   mesh["fields/velocity/association"] = "vertex";
   mesh["fields/velocity/topology"]    = "mesh";
-  mesh["fields/velocity/values/u"].set_external_float32_ptr(&(sim->scalarsAOS[0].vel[0]), sim->n,
+  mesh["fields/velocity/values/u"].set_external(&(sim->scalarsAOS[0].vel[0]), sim->n,
                                                                 0,
                                                                 sim->NbofScalarfields * sizeof(T));
-  mesh["fields/velocity/values/v"].set_external_float32_ptr(&(sim->scalarsAOS[0].vel[0]), sim->n,
-                                                                1 * sizeof(T),
+  mesh["fields/velocity/values/v"].set_external(&(sim->scalarsAOS[0].vel[1]), sim->n,
+                                                                0 * sizeof(T),
                                                                 sim->NbofScalarfields * sizeof(T));
-  mesh["fields/velocity/values/w"].set_external_float32_ptr(&(sim->scalarsAOS[0].vel[0]), sim->n,
-                                                                2 * sizeof(T),
+  mesh["fields/velocity/values/w"].set_external(&(sim->scalarsAOS[0].vel[2]), sim->n,
+                                                                0 * sizeof(T),
                                                                 sim->NbofScalarfields * sizeof(T));
   mesh["fields/velocity/volume_dependent"].set("false");
   */
   
 #else
   // first the coordinates
-  mesh["coordsets/coords/values/x"].set_external(sim->x);
-  mesh["coordsets/coords/values/y"].set_external(sim->y);
-  mesh["coordsets/coords/values/z"].set_external(sim->z);
+  addCoordinates(mesh, sim->x, sim->y, sim->z);
   
   // then the variables
   addField(mesh, "rho" , sim->rho.data(), sim->n);
-  addField(mesh, "temp", sim->temp.data(), sim->n);
+  addField(mesh, "Temperature", sim->temp.data(), sim->n);
   addField(mesh, "mass", sim->mass.data(), sim->n);
 
   addField(mesh, "vx", sim->vx.data(), sim->n);
@@ -168,6 +132,27 @@ void Initialize(sph::ParticlesData<T> *sim)
   */
 #endif
 
+#if defined (ASCENT_CUDA_ENABLED)
+#ifdef STRIDED_SCALARS
+    // Future work
+#else
+// device_move allocates and uses set external to provide data on the device
+    device_move(mesh["coordsets/coords/values/x"], sim->n*sizeof(T));
+    device_move(mesh["coordsets/coords/values/y"], sim->n*sizeof(T));
+    device_move(mesh["coordsets/coords/values/z"], sim->n*sizeof(T));
+    //device_move(mesh["topologies/mesh/elements/connectivity"], sim->n);
+    device_move(mesh["fields/rho/values"], sim->n*sizeof(T));
+    device_move(mesh["fields/Temperature/values"], sim->n*sizeof(T));
+    device_move(mesh["fields/mass/values"], sim->n*sizeof(T));
+    device_move(mesh["fields/vx/values"], sim->n*sizeof(T));
+    device_move(mesh["fields/vy/values"], sim->n*sizeof(T));
+    device_move(mesh["fields/vz/values"], sim->n*sizeof(T));
+    device_move(mesh["fields/x/values"], sim->n*sizeof(T));
+    device_move(mesh["fields/y/values"], sim->n*sizeof(T));
+    device_move(mesh["fields/z/values"], sim->n*sizeof(T))
+#endif
+#endif
+
   if(!conduit::blueprint::mesh::verify(mesh,verify_info))
   {
     CONDUIT_INFO("blueprint verify failed!" + verify_info.to_json());
@@ -176,17 +161,17 @@ void Initialize(sph::ParticlesData<T> *sim)
     std::cout << "Conduit Blueprint check found interleaved coordinates" << std::endl;
   else
     std::cout << "Conduit Blueprint check found contiguous coordinates" << std::endl;
-  mesh.print();
+  //mesh.print();
 // Create an action that tells Ascent to:
 //  add a scene (s1) with one plot (p1)
 //  that will render a pseudocolor of 
 //  the mesh field `rho`
 
-  conduit::Node &add_act = actions.append(); 
+  ConduitNode &add_act = actions.append(); 
   add_act["action"] = "add_scenes";
 
 // declare a scene (s1) and pseudocolor plot (p1)
-  conduit::Node &scenes = add_act["scenes"];
+  ConduitNode &scenes = add_act["scenes"];
   scenes["s1/plots/p1/type"] = "pseudocolor";
 //#define RANKS
 #ifdef RANKS
@@ -225,10 +210,27 @@ void Initialize(sph::ParticlesData<T> *sim)
   */
 }
 
-void Execute([[maybe_unused]]int it, [[maybe_unused]]int frequency)
+template<typename T>
+void Execute([[maybe_unused]]int it, [[maybe_unused]]int frequency, sph::ParticlesData<T> *sim)
 {
   if(it % frequency == 0)
     {
+#if defined (ASCENT_CUDA_ENABLED)
+#ifdef STRIDED_SCALARS
+#else
+    // update "rho" and "temp" on device
+    copy_from_host_to_device(mesh["fields/rho/values"].data_ptr(),
+                             sim->rho.data(), sim->n*sizeof(T));
+    copy_from_host_to_device(mesh["fields/Temperature/values"].data_ptr(),
+                             sim->temp.data(), sim->n*sizeof(T));
+    copy_from_host_to_device(mesh["fields/vx/values"].data_ptr(),
+                             sim->vx.data(), sim->n*sizeof(T));
+    copy_from_host_to_device(mesh["fields/vy/values"].data_ptr(),
+                             sim->vy.data(), sim->n*sizeof(T));
+    copy_from_host_to_device(mesh["fields/vz/values"].data_ptr(),
+                             sim->vz.data(), sim->n*sizeof(T));
+#endif
+#endif
     ascent.publish(mesh);
     ascent.execute(actions);
     }
@@ -238,8 +240,8 @@ void Execute([[maybe_unused]]int it, [[maybe_unused]]int frequency)
 void Finalize()
 {
 #ifdef DATADUMP
-  conduit::Node save_data_actions;
-  conduit::Node &add_act = save_data_actions.append(); 
+  ConduitNode save_data_actions;
+  ConduitNode &add_act = save_data_actions.append(); 
   add_act["action"] = "add_extracts";
   conduit::Node &extracts = add_act["extracts"];
   extracts["e1/type"] = "relay";

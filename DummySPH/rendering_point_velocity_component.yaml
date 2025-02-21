@@ -7,13 +7,13 @@
 -
   action: "add_pipelines"
   pipelines:
-    pl_extract_vx_component:
-      f1:
-        type: "vector_component"
-        params:
-          field: "velocity"
-          component: 0
-          output_name: "velocity_0"
+    #pl_histsampling:
+      #f1: 
+        #type: "histsampling"
+        #params:
+          #field: "rho"
+          #sample_rate: 0.1
+          #bins: 32
     pl_composite_velocity:
       f1:
         type: "composite_vector"
@@ -21,14 +21,13 @@
           field1: "vx"
           field2: "vy"
           field3: "vz"
-          output_name: "velocity_composed"
-    pl_velocity_magnitude:
-      f1:
+          output_name: "velocity"
+      f2:
         type: "vector_magnitude"
         params:
           field: "velocity"
           output_name: "velocity_magnitude"
-    pl_threshold_coords_x:
+    pl_threshold_coords_:
       f1:
         type: "vector_component"
         params:
@@ -38,9 +37,9 @@
       f2:
         type: "threshold"
         params:
-          field: "coords_x"
-          min_value: 0.0
-          max_value: 10.0
+          field: "z"
+          min_value: -0.5
+          max_value: 0.5
     pl_geometric_clip: 
       f1: 
         type: "clip"
@@ -65,35 +64,35 @@
       f2: 
         type: "clip_with_field"
         params: 
-          field: "Density"
-          clip_value: 1.0
+          field: "x"
+          clip_value: 0.0
           invert: "true" # false means remove below clip_value
 -
   action: "add_scenes"
   scenes:
-    s1:
-      plots:
-        p1:
-          type: "pseudocolor"
-          field: "velocity_0"
-          pipeline: "pl_extract_vx_component"
-          points:
-            radius: 0.01
-      renders:
-        r1:
-          image_width: 1024
-          image_height: 1024
-          image_prefix: "datasets/velocity_0.%05d"
-          camera:
-            azimuth: 30
-            elevation: 30
-          dataset_bounds: [-1.0, 1.0, -1.0, 1.0, -1.0, 1.0]
+    #s1:
+      #plots:
+        #p1:
+          #type: "pseudocolor"
+          #field: "rho"
+          #pipeline: "pl_histsampling"
+          #points:
+            #radius: 0.01
+      #renders:
+        #r1:
+          #image_width: 1024
+          #image_height: 1024
+          #image_prefix: "datasets/rho_histsampling.%05d"
+          #camera:
+            #azimuth: 30
+            #elevation: 30
+          #dataset_bounds: [-1.0, 1.0, -1.0, 1.0, -1.0, 1.0]
     s2:
       plots:
         p1:
           type: "pseudocolor"
           field: "velocity_magnitude"
-          pipeline: "pl_velocity_magnitude"
+          pipeline: "pl_composite_velocity"
           points:
             radius: 0.01
       renders:
@@ -109,8 +108,8 @@
       plots:
         p1:
           type: "pseudocolor"
-          field: "coords_x"
-          pipeline: "pl_threshold_coords_x"
+          field: "vy"
+          pipeline: "pl_threshold_coords_"
           points:
             radius: 0.01
       renders:
@@ -126,7 +125,7 @@
       plots:
         p1:
           type: "pseudocolor"
-          field: "Density"
+          field: "vy"
           pipeline: "pl_geometric_clip"
           points:
             radius: 0.01
@@ -143,7 +142,7 @@
       plots:
         p1:
           type: "pseudocolor"
-          field: "Density"
+          field: "vy"
           pipeline: "pl_clip_with_Scalar"
           points:
             radius: 0.01
