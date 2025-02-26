@@ -32,6 +32,9 @@ class ParticlesData
       T vel[3];
       T rho;
       T temp;
+      T hsmooth;
+      T metals;
+      T phi;
     };
     std::vector<tipsySph> scalarsAOS;
     static constexpr int NbofScalarfields = sizeof(tipsySph)/sizeof(T);
@@ -48,10 +51,35 @@ class ParticlesData
     static constexpr T cstMass = 0.12345;
     static constexpr T bbox_offset = 2.0; // to offset each MPI partition in 3D space
     
-    void AllocateGridMemory(int N)
+    ParticlesData()
     {
     MPI_Comm_rank(MPI_COMM_WORLD, &this->par_rank);
     MPI_Comm_size(MPI_COMM_WORLD, &this->par_size);
+    }
+    
+    void UseTipsyData(const float *data, int N)
+    {
+    this->iteration = 0;
+#ifdef STRIDED_SCALARS
+    if(sizeof(T) == sizeof(float))
+      {
+      this->n = N;
+      this->scalarsAOS.resize(this->n);
+      memcpy(this->scalarsAOS.data(), data, N*sizeof(tipsySph));
+      }
+    else
+      {
+      std::cerr << "Not implemented for float64 data layout. Must reconfigure Driver.cxx\n";
+      exit(1);
+      }
+#else
+    std::cerr << "Not implemented for non-strided data layout. Must reconfigure with cmake\n";
+    exit(1);
+#endif
+    };
+    
+    void AllocateGridMemory(int N)
+    {
     this->n = N*N*N;
     this->iteration = 0;
 
@@ -141,7 +169,7 @@ class ParticlesData
     this->iteration++;
     this->time = this->iteration * 0.01; // fixed, arbitrary timestep value
     T timeoffset = 0.3*sin((this->iteration * M_PI) / 180.0); // fixed, arbitrary timestep value
-    //std::cout << "timeoffset " << timeoffset << std::endl;
+    std::cout << "timeoffset " << timeoffset << std::endl;
     // all variables remain constant over time except "rho" and "temp"
     for (size_t i=0; i < this->n; i++)
       {

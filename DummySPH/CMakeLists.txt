@@ -29,6 +29,8 @@ if(STRIDED_SCALARS)
 endif()
 
 option(STRIDED_SCALARS "Use interleaved scalar arrays") 
+option(CAN_LOAD_TIPSY "Use Tipsy data instead of dummy data")
+
 
 set(INSITU None CACHE STRING "Enable in-situ support")
 set_property(CACHE INSITU PROPERTY STRINGS None Catalyst Ascent VTK-m)
@@ -50,6 +52,9 @@ elseif(INSITU STREQUAL "Ascent")
   find_package(Ascent REQUIRED PATHS "/capstor/scratch/cscs/piccinal/daint/jf/ascent/install/ascent-checkout")
 
   add_executable(dummysph_ascent ${C_SRCS})
+  if(CAN_LOAD_TIPSY)
+  target_compile_definitions(dummysph_ascent PRIVATE LOAD_TIPSY=1)
+endif()
   target_include_directories(dummysph_ascent PRIVATE ${PROJECT_SOURCE_DIR})
   target_compile_definitions(dummysph_ascent PRIVATE USE_ASCENT=1)
 if(STRIDED_SCALARS)
@@ -68,6 +73,10 @@ endif()
   find_package(VTKm REQUIRED QUIET)
 
   add_executable(dummysph_vtkm ${C_SRCS})
+if(CAN_LOAD_TIPSY)
+  target_compile_definitions(dummysph_vtkm PRIVATE LOAD_TIPSY=1)
+endif()
+
   target_compile_definitions(dummysph_vtkm PRIVATE USE_VTKM=1)
 if(STRIDED_SCALARS)
   target_compile_definitions(dummysph_vtkm PRIVATE STRIDED_SCALARS=1)

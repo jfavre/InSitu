@@ -5,6 +5,7 @@
 
 #ifdef USE_CATALYST
 #include <catalyst.hpp>
+//#include <catalyst_conduit.h>
 #include <conduit_blueprint.h>
 typedef conduit_cpp::Node ConduitNode;
 #endif
@@ -110,7 +111,7 @@ void execute([[maybe_unused]] sph::ParticlesData<T> *sim,
   AscentAdaptor::Execute(iteration, frequency, sim);
 #endif
 #ifdef USE_VTKM
-  VTKmAdaptor::Execute(iteration, frequency);
+  VTKmAdaptor::Execute(iteration, frequency, sim);
 #endif
 }
 

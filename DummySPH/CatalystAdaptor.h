@@ -157,8 +157,9 @@ void Execute(sph::ParticlesData<T> *sim)
   {
     std::cerr << "ERROR: Failed to execute Catalyst: " << err << std::endl;
   }
-  //if(sim->iteration == 1)
-    //mesh.print();
+
+  //conduit_node_save(c_node(&mesh), "my_output.json", "json");
+
 }
 
 void Finalize()

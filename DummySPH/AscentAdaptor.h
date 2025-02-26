@@ -45,11 +45,13 @@ void Initialize(sph::ParticlesData<T> *sim)
   }
 
   ConduitNode ascent_options;
-  ascent_options["default_dir"] = "./datasets";
+  ascent_options["default_dir"] = output_path;
   ascent_options["mpi_comm"] = MPI_Comm_c2f(MPI_COMM_WORLD);
   ascent_options["ascent_info"] = "verbose";
   ascent_options["exceptions"] = "forward";
-
+#ifdef CAMP_HAVE_CUDA
+  ascent_options["runtine/vtkm/backend"] = "cuda";
+#endif
   ascent.open(ascent_options);
 
   mesh["state/cycle"].set_external(&sim->iteration);
@@ -149,7 +151,7 @@ void Initialize(sph::ParticlesData<T> *sim)
     device_move(mesh["fields/vz/values"], sim->n*sizeof(T));
     device_move(mesh["fields/x/values"], sim->n*sizeof(T));
     device_move(mesh["fields/y/values"], sim->n*sizeof(T));
-    device_move(mesh["fields/z/values"], sim->n*sizeof(T))
+    device_move(mesh["fields/z/values"], sim->n*sizeof(T));
 #endif
 #endif
 
@@ -241,7 +243,7 @@ void Finalize()
 {
 #ifdef DATADUMP
   ConduitNode save_data_actions;
-  ConduitNode &add_act = save_data_actions.append(); 
+  ConduitNode &add_act = save_data_actions.append();
   add_act["action"] = "add_extracts";
   conduit::Node &extracts = add_act["extracts"];
   extracts["e1/type"] = "relay";
