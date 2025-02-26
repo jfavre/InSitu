@@ -20,6 +20,7 @@ Tested Mon  9 Dec 13:50:37 CET 2024
 
 #include <mpi.h> 
 #include <sstream>
+#include <cstring>
 
 #include "insitu_viz.h"
 #ifdef LOAD_TIPSY
