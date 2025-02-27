@@ -31,19 +31,31 @@ using namespace sph;
 
 int main(int argc, char *argv[])
 {
-  int it = 0, Niterations = 10, Nparticles = 50; // actually Nparticles^3
-  int frequency = 10;
+  int it = 0, Niterations = 10, Nparticles = 150; // actually Nparticles^3
+  int frequency = 1;
   int par_rank = 0;
   int par_size = 1;
-  bool dummydata = false;
+  bool dummydata = true;
   const bool quiet = false;
+  std::string TipsyFileName;
   std::ofstream nullOutput("/dev/null");
   std::ostream& output = (quiet || par_rank) ? nullOutput : std::cout;
   sphexa::Timer timer(output);
   MPI_Init(&argc, &argv);
   MPI_Comm_rank(MPI_COMM_WORLD, &par_rank);
   MPI_Comm_size(MPI_COMM_WORLD, &par_size);
-  
+
+#ifdef LOAD_TIPSY
+  for (int cc = 1; cc < argc; ++cc)
+  {
+    if (strcmp(argv[cc], "--tipsy") == 0 && (cc + 1) < argc)
+    {
+      TipsyFileName = std::string(argv[cc+1]);
+      dummydata = false;
+    }
+  }
+#endif
+
   ParticlesData<float> *sim = new(ParticlesData<float>);
   if(dummydata)
     sim->AllocateGridMemory(Nparticles);
@@ -52,18 +64,19 @@ int main(int argc, char *argv[])
     // only knows how to load a static Tipsy file at the moment.
     int n[3] = {1,0,0};
     frequency = Niterations = 1;
-    TipsyFile *filein = new TipsyFile(argv[1]);
+    TipsyFile *filein = new TipsyFile(TipsyFileName.c_str());
     filein->read_header();
     filein->read_gas_piece(par_rank, par_size, n[0]);
     sim->UseTipsyData(filein->gas_ptr(), n[0]);
     delete filein;
   }
 #endif
-
-  viz::init(argc, argv, sim);
-
   timer.start();
-  timer.step("post-init");
+  timer.step("pre-initialization");
+  
+  viz::init(argc, argv, sim);
+  
+  timer.step("post-initialization");
   while (it < Niterations)
     {
 #ifndef LOAD_TIPSY

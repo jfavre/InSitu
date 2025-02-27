@@ -16,6 +16,7 @@
 #include <vtkm/io/VTKDataSetWriter.h>
 #include <vtkm/rendering/Actor.h>
 #include <vtkm/rendering/CanvasRayTracer.h>
+#include <vtkm/filter/field_transform/LogValues.h>
 
 #include <vtkm/rendering/MapperPoint.h>
 #include <vtkm/rendering/MapperRayTracer.h>
@@ -43,10 +44,7 @@ namespace VTKmAdaptor
 {
   vtkm::rendering::CanvasRayTracer   canvas(1024,1024);
   vtkm::rendering::Scene             scene;
-  vtkm::rendering::MapperPoint       mapper0; // rendering crash
-  vtkm::rendering::MapperRayTracer   mapper1; // no rendering errors but empty output 
-  vtkm::rendering::MapperWireframer  mapper2; // rendering errors out, creates empty images
-  vtkm::rendering::MapperGlyphScalar mapper3; // rendering crash
+  vtkm::rendering::MapperPoint       mapper;
   vtkm::cont::DataSet                dataSet;
   vtkm::Bounds bounds;
 
@@ -76,10 +74,11 @@ void Initialize(int argc, char* argv[], sph::ParticlesData<T> *sim)
   */
   /****************************************/
 #ifdef STRIDED_SCALARS
+// base of the AOS struct{}. every field will be offset from that base
   auto AOS = vtkm::cont::make_ArrayHandle<T>(&sim->scalarsAOS[0].mass,
                                              sim->n * sim->NbofScalarfields,
                                              vtkm::CopyFlag::Off);
-
+// coordinates are at offset 1, 2, 3 (x, y, z)
   vtkm::cont::ArrayHandleStride<T> pos_x (AOS, sim->n, sim->NbofScalarfields, 1);
   vtkm::cont::ArrayHandleStride<T> pos_y (AOS, sim->n, sim->NbofScalarfields, 2);
   vtkm::cont::ArrayHandleStride<T> pos_z (AOS, sim->n, sim->NbofScalarfields, 3);
@@ -191,21 +190,6 @@ void Initialize(int argc, char* argv[], sph::ParticlesData<T> *sim)
 #endif
 
   //dataSet.PrintSummary(std::cout);
-  
-    //Creating Actor
-  vtkm::cont::ColorTable colorTable("viridis");
-  vtkm::rendering::Actor actor(dataSet.GetCellSet(),
-                               dataSet.GetCoordinateSystem(),
-                               dataSet.GetField("rho"),
-                               colorTable);
-
-  // Adding Actor to the scene
-  scene.AddActor(actor);
-
-  mapper0.SetUsePoints();
-  mapper0.SetRadius(0.02f);
-  mapper0.UseVariableRadius(false);
-  mapper0.SetRadiusDelta(0.05f);
 }
 
 template<typename T>
@@ -214,35 +198,30 @@ void Execute([[maybe_unused]]int it, [[maybe_unused]]int frequency, sph::Particl
   std::ostringstream fname;
   if(it % frequency == 0)
     {
-//#define RENDERING 1 // works only in non-strided mode
-#ifdef  RENDERING
-    fname << "/dev/shm/insitu." << std::setfill('0') << std::setw(4) << it << ".png";
-    vtkm::rendering::View3D view(scene, mapper0, canvas);
-
-    view.GetCamera().ResetToBounds(bounds);
-    view.GetCamera().Azimuth(30.0);
-    view.GetCamera().Elevation(30.0);
-    view.SetBackgroundColor(vtkm::rendering::Color(1.0f, 1.0f, 1.0f));
-    view.SetForegroundColor(vtkm::rendering::Color(0.0f, 0.0f, 0.0f));
-    view.Paint();
-    view.SaveAs(fname.str());
-#endif
-
 #define HISTSAMPLING 1
 #ifdef  HISTSAMPLING
   /********** HistSampling *****************/
   using AssocType = vtkm::cont::Field::Association;
   vtkm::filter::resampling::HistSampling histsample;
   histsample.SetNumberOfBins(128);
-  histsample.SetSampleFraction(0.05);
+  histsample.SetSampleFraction(.5);
   histsample.SetActiveField("rho", AssocType::Points);
   auto histsampleDataSet = histsample.Execute(dataSet);
-  if(1)
-    {
-    vtkm::filter::geometry_refinement::ConvertToPointCloud topc;
-    topc.SetFieldsToPass("rho");
-    auto topcDataSet = topc.Execute(histsampleDataSet);
+
+  vtkm::filter::geometry_refinement::ConvertToPointCloud topc;
+  topc.SetFieldsToPass("rho");
+  auto topcDataSet = topc.Execute(histsampleDataSet);
   
+  vtkm::filter::field_transform::LogValues lgv;
+  lgv.SetBaseValueTo10();
+  lgv.SetActiveField("rho", AssocType::Points);
+  lgv.SetOutputFieldName("log(rho)");
+  
+  auto lgvDataSet = lgv.Execute(topcDataSet);
+    
+// writing to disk (optional, for debugging only)
+  if(0)
+    {
     fname.str("");
     fname << "/dev/shm/histsample." << std::setfill('0') << std::setw(2) << sim->par_rank << "." << std::setfill('0') << std::setw(4) << it << ".vtk";
     std::cerr << "writing " << fname.str() << std::endl;
@@ -250,9 +229,46 @@ void Execute([[maybe_unused]]int it, [[maybe_unused]]int frequency, sph::Particl
     histsampleWriter.SetFileTypeToBinary();
     histsampleWriter.WriteDataSet(topcDataSet);
     }
+    
+#define RENDERING 1 // works, with careful tuning of the pipeline above
+#ifdef  RENDERING
+
+  //Creating Actor
+  vtkm::cont::ColorTable colorTable("viridis");
+  vtkm::rendering::Actor actor(topcDataSet.GetCellSet(),
+                               topcDataSet.GetCoordinateSystem(),
+                               topcDataSet.GetField("rho"),
+                               colorTable);
+
+  scene.AddActor(actor);
+
+  mapper.SetUsePoints();
+  mapper.SetRadius(0.02f);
+  mapper.UseVariableRadius(false);
+  mapper.SetRadiusDelta(0.05f);
+  fname.str("");
+  fname << "/dev/shm/insitu." << std::setfill('0') << std::setw(4) << it << ".png";
+  vtkm::rendering::View3D view(scene, mapper, canvas);
+
+  // use B=50 for the small Tipsy example
+  float B=1.0;
+  bounds = vtkm::Bounds(vtkm::Vec3f_64(-B, -B, -B),
+                        vtkm::Vec3f_64(B, B, B)
+                       );
+
+  view.GetCamera().ResetToBounds(bounds);
+  view.GetCamera().Azimuth(30.0);
+  view.GetCamera().Elevation(30.0);
+  view.SetBackgroundColor(vtkm::rendering::Color(1.0f, 1.0f, 1.0f));
+  view.SetForegroundColor(vtkm::rendering::Color(0.0f, 0.0f, 0.0f));
+  view.Paint();
+  view.SaveAs(fname.str());
+  std::cerr << "written image to disk: "<< fname.str() << std::endl;
 #endif
 
-#define CROSS_SLICING 1
+#endif
+
+//#define CROSS_SLICING 1
 #ifdef  CROSS_SLICING
   vtkm::filter::entity_extraction::ThresholdPoints thresholdPoints;
   // 
@@ -261,7 +277,9 @@ void Execute([[maybe_unused]]int it, [[maybe_unused]]int frequency, sph::Particl
   thresholdPoints.SetFieldsToPass("rho");
   thresholdPoints.SetCompactPoints(true);
   auto output = thresholdPoints.Execute(dataSet);
-  if(1)
+
+// writing to disk (optional, for debugging only)
+  if(0)
     {
     fname.str("");
     fname << "/dev/shm/thresholdPoints." << std::setfill('0') << std::setw(2) << sim->par_rank << "." << std::setfill('0') << std::setw(4) << it << ".vtk";
