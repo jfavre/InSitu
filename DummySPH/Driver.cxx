@@ -37,7 +37,7 @@ int main(int argc, char *argv[])
   int par_size = 1;
   bool dummydata = true;
   const bool quiet = false;
-  std::string TipsyFileName;
+  std::string TipsyFileName, H5PartFileName;
   std::ofstream nullOutput("/dev/null");
   std::ostream& output = (quiet || par_rank) ? nullOutput : std::cout;
   sphexa::Timer timer(output);
@@ -45,7 +45,6 @@ int main(int argc, char *argv[])
   MPI_Comm_rank(MPI_COMM_WORLD, &par_rank);
   MPI_Comm_size(MPI_COMM_WORLD, &par_size);
 
-#ifdef LOAD_TIPSY
   for (int cc = 1; cc < argc; ++cc)
   {
     if (strcmp(argv[cc], "--tipsy") == 0 && (cc + 1) < argc)
@@ -53,8 +52,12 @@ int main(int argc, char *argv[])
       TipsyFileName = std::string(argv[cc+1]);
       dummydata = false;
     }
+    if (strcmp(argv[cc], "--h5part") == 0 && (cc + 1) < argc)
+    {
+      H5PartFileName = std::string(argv[cc+1]);
+      dummydata = false;
+    }
   }
-#endif
 
   ParticlesData<float> *sim = new(ParticlesData<float>);
   if(dummydata)
@@ -69,6 +72,13 @@ int main(int argc, char *argv[])
     filein->read_gas_piece(par_rank, par_size, n[0]);
     sim->UseTipsyData(filein->gas_ptr(), n[0]);
     delete filein;
+  }
+#endif
+#ifdef LOAD_H5Part
+  else{
+    // only knows how to load a single timestep at the moment
+    frequency = Niterations = 1;
+    sim->UseH5PartData(H5PartFileName);
   }
 #endif
   timer.start();

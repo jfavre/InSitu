@@ -22,15 +22,22 @@ set(C_SRCS
 Driver.cxx
 )
 
-add_executable(dummysph ${C_SRCS})
-target_link_libraries(dummysph PRIVATE MPI::MPI_C MPI::MPI_CXX m)
-if(STRIDED_SCALARS)
-  target_compile_definitions(dummysph PRIVATE STRIDED_SCALARS=1)
-endif()
+#add_executable(dummysph ${C_SRCS})
+#target_link_libraries(dummysph PRIVATE MPI::MPI_C MPI::MPI_CXX m)
+#if(STRIDED_SCALARS)
+#  target_compile_definitions(dummysph PRIVATE STRIDED_SCALARS=1)
+#endif()
+#if(CAN_LOAD_H5Part)
+#  target_compile_definitions(dummysph PRIVATE LOAD_H5Part=1)
+#endif()
 
 option(STRIDED_SCALARS "Use interleaved scalar arrays") 
-option(CAN_LOAD_TIPSY "Use Tipsy data instead of dummy data")
+option(CAN_LOAD_TIPSY  "Use Tipsy data instead of dummy data")
+option(CAN_LOAD_H5Part "Use H5Part data instead of dummy data")
 
+if(CAN_LOAD_H5Part)
+find_package(HDF5 REQUIRED)
+endif()
 
 set(INSITU None CACHE STRING "Enable in-situ support")
 set_property(CACHE INSITU PROPERTY STRINGS None Catalyst Ascent VTK-m)
@@ -55,6 +62,9 @@ elseif(INSITU STREQUAL "Ascent")
   find_package(Ascent REQUIRED PATHS "/capstor/scratch/cscs/piccinal/daint/jf/ascent/install/ascent-checkout")
 
   add_executable(dummysph_ascent ${C_SRCS})
+if(CAN_LOAD_H5Part)
+  target_compile_definitions(dummysph_ascent PRIVATE LOAD_H5Part=1)
+endif()
 if(CAN_LOAD_TIPSY)
   target_compile_definitions(dummysph_ascent PRIVATE LOAD_TIPSY=1)
 endif()

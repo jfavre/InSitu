@@ -10,6 +10,38 @@
 #include <math.h>
 #include <stdlib.h>
 #include <mpi.h>
+#ifdef LOAD_H5Part
+#include <hdf5.h>
+
+static int ReadHDF5Dataset(const char *name, const hid_t mesh_id, void *data, int size)
+{
+  hid_t dset_id, filespace, attr1;
+  herr_t  status;
+  hsize_t dimsf[2]={0,0};
+
+  dset_id = H5Dopen(mesh_id, name, H5P_DEFAULT);
+  
+  if(dset_id >= 0)
+    {
+    filespace = H5Dget_space(dset_id);
+    H5Sget_simple_extent_dims(filespace, dimsf, NULL);
+    H5Sclose(filespace);
+  
+    if (size == 4 && H5Dread(dset_id, H5T_NATIVE_FLOAT, H5P_DEFAULT, H5P_DEFAULT, H5P_DEFAULT, data) < 0)
+      {
+      std::cerr << "Error reading dataset " << name << std::endl;
+      return -1;
+      }
+    if (size == 8 && H5Dread(dset_id, H5T_NATIVE_DOUBLE, H5P_DEFAULT, H5P_DEFAULT, H5P_DEFAULT, data) < 0)
+      {
+      std::cerr << "Error reading dataset " << name << std::endl;
+      return -1;
+      }
+    }
+    H5Dclose(dset_id);
+    return dimsf[0];
+}
+#endif
 
 namespace sph
 {
@@ -40,10 +72,10 @@ class ParticlesData
     static constexpr int NbofScalarfields = sizeof(tipsySph)/sizeof(T);
 #else
     std::vector<T> mass;            // "mass"
-    std::vector<T> x, y, z;         // Positions
+    std::vector<double> x, y, z;         // Positions
     std::vector<T> vx, vy, vz;      // Velocities
     std::vector<T> rho;             // Density
-    std::vector<T> temp;            // Temperature
+    std::vector<double> temp;            // Temperature
 
     static constexpr int NbofScalarfields = 9;
 #endif
@@ -57,6 +89,81 @@ class ParticlesData
     MPI_Comm_size(MPI_COMM_WORLD, &this->par_size);
     }
     
+    int UseH5PartData(const std::string  &H5PartFileName)
+    {
+    this->iteration = 0;
+#ifdef STRIDED_SCALARS
+    std::cerr << "Not implemented for strided data layout. Must reconfigure with cmake\n";
+    exit(-1);
+#endif
+    hid_t file_id;
+    file_id = H5Fopen(H5PartFileName.c_str(), H5F_ACC_RDONLY, H5P_DEFAULT);
+    if(file_id != H5I_INVALID_HID)
+      {
+      std::cout << __LINE__ << " :found valid HDF5 file " << H5PartFileName << std::endl;
+      hid_t root_id = H5Gopen(file_id, "/", H5P_DEFAULT);
+      if (root_id != H5I_INVALID_HID)
+        {
+        hid_t attr1 = H5Aopen_name(root_id, "numParticlesGlobal");
+        if (H5Aread(attr1, H5T_NATIVE_INT, &this->n) < 0)
+         {
+         std::cerr << "missing attributes numParticlesGlobal" << std::endl;
+         }
+        else
+          {
+          H5Aclose(attr1);
+          std::cout << __LINE__ << " :found " << this->n << " particles"<<std::endl;
+          }
+        hid_t step_id = H5Gopen(root_id, "Step#0", H5P_DEFAULT);
+        if (step_id != H5I_INVALID_HID)
+          {
+          std::cout << __LINE__ << " :found valid HDF5 Step#0 " << std::endl;
+          std::cout << "Allocating 9 std::vectors of scalar fields"<<std::endl;
+          
+          this->x.resize(this->n);
+          ReadHDF5Dataset("x", step_id, this->x.data(), sizeof(double));
+          this->y.resize(this->n);
+          ReadHDF5Dataset("y", step_id, this->y.data(), sizeof(double));
+          this->z.resize(this->n);
+          ReadHDF5Dataset("z", step_id, this->z.data(), sizeof(double));
+
+          this->vx.resize(this->n);
+          ReadHDF5Dataset("vx", step_id, this->vx.data(), sizeof(float));
+          this->vy.resize(this->n);
+          ReadHDF5Dataset("vy", step_id, this->vy.data(), sizeof(float));
+          this->vz.resize(this->n);
+          ReadHDF5Dataset("vz", step_id, this->vz.data(), sizeof(float));
+
+          this->rho.resize(this->n);
+          ReadHDF5Dataset("rho", step_id, this->rho.data(), sizeof(float));
+          this->mass.resize(this->n);
+          ReadHDF5Dataset("m", step_id, this->mass.data(), sizeof(float));
+          this->temp.resize(this->n);
+          ReadHDF5Dataset("temp", step_id, this->temp.data(), sizeof(double));
+
+          std::cout << __LINE__ << " H5Gclose(step_id) " << std::endl;
+          H5Gclose(step_id);
+          }
+        else
+          {
+          std::cerr << "cannot open /Step#0 " << std::endl;
+          exit(-1);
+          }
+        std::cout << __LINE__ << " H5Gclose(root_id) " << std::endl;
+        H5Gclose(root_id);
+        }
+        std::cout << __LINE__ << " H5Fclose(file_id) " << std::endl;
+        H5Fclose(file_id);
+      }
+    else
+      {
+      std::cerr << "cannot open valid HDF5 file " << H5PartFileName << std::endl;
+      exit(1);
+      }
+    std::cout << __LINE__ << " finished loading H5Part data " << std::endl;
+    return(0);
+    };
+
     void UseTipsyData(const float *data, int N)
     {
     this->iteration = 0;
@@ -70,14 +177,14 @@ class ParticlesData
     else
       {
       std::cerr << "Not implemented for float64 data layout. Must reconfigure Driver.cxx\n";
-      exit(1);
+      exit(-1);
       }
 #else
     std::cerr << "Not implemented for non-strided data layout. Must reconfigure with cmake\n";
-    exit(1);
+    exit(-1);
 #endif
     };
-    
+
     void AllocateGridMemory(int N)
     {
     this->n = N*N*N;
