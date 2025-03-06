@@ -88,7 +88,7 @@ class ParticlesData
     MPI_Comm_rank(MPI_COMM_WORLD, &this->par_rank);
     MPI_Comm_size(MPI_COMM_WORLD, &this->par_size);
     }
-    
+#ifdef LOAD_H5Part
     int UseH5PartData(const std::string  &H5PartFileName)
     {
     this->iteration = 0;
@@ -117,27 +117,35 @@ class ParticlesData
         hid_t step_id = H5Gopen(root_id, "Step#0", H5P_DEFAULT);
         if (step_id != H5I_INVALID_HID)
           {
+// N.B. x,y,z,temp are doubles, the others are float
+// thus, in Driver.cxx you must use   ParticlesData<float> *sim = new(ParticlesData<float>);
           std::cout << __LINE__ << " :found valid HDF5 Step#0 " << std::endl;
           std::cout << "Allocating 9 std::vectors of scalar fields"<<std::endl;
-          
+
           this->x.resize(this->n);
           ReadHDF5Dataset("x", step_id, this->x.data(), sizeof(double));
+
           this->y.resize(this->n);
           ReadHDF5Dataset("y", step_id, this->y.data(), sizeof(double));
+
           this->z.resize(this->n);
           ReadHDF5Dataset("z", step_id, this->z.data(), sizeof(double));
 
           this->vx.resize(this->n);
           ReadHDF5Dataset("vx", step_id, this->vx.data(), sizeof(float));
+
           this->vy.resize(this->n);
           ReadHDF5Dataset("vy", step_id, this->vy.data(), sizeof(float));
+
           this->vz.resize(this->n);
           ReadHDF5Dataset("vz", step_id, this->vz.data(), sizeof(float));
 
           this->rho.resize(this->n);
           ReadHDF5Dataset("rho", step_id, this->rho.data(), sizeof(float));
+
           this->mass.resize(this->n);
           ReadHDF5Dataset("m", step_id, this->mass.data(), sizeof(float));
+
           this->temp.resize(this->n);
           ReadHDF5Dataset("temp", step_id, this->temp.data(), sizeof(double));
 
@@ -163,7 +171,7 @@ class ParticlesData
     std::cout << __LINE__ << " finished loading H5Part data " << std::endl;
     return(0);
     };
-
+#endif
     void UseTipsyData(const float *data, int N)
     {
     this->iteration = 0;

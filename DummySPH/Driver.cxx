@@ -31,7 +31,7 @@ using namespace sph;
 
 int main(int argc, char *argv[])
 {
-  int it = 0, Niterations = 10, Nparticles = 150; // actually Nparticles^3
+  int it = 0, Niterations = 1, Nparticles = 100; // actually Nparticles^3
   int frequency = 1;
   int par_rank = 0;
   int par_size = 1;
@@ -89,9 +89,8 @@ int main(int argc, char *argv[])
   timer.step("post-initialization");
   while (it < Niterations)
     {
-#ifndef LOAD_TIPSY
-    sim->simulate_one_timestep();
-#endif
+    if(dummydata)
+      sim->simulate_one_timestep();
     it++;
     viz::execute(sim, it, frequency);
     }
