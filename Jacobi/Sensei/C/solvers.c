@@ -1,4 +1,4 @@
-#include <malloc.h>
+#include <stdlib.h>
 #include <string.h>
 #include <stdio.h>
 #include <math.h>
@@ -15,7 +15,7 @@ void SimInitialize(simulation_data *sim)
   sim->savingFiles = 0;
   sim->saveCounter = 0;
   sim->batch = 0;
-  sim->export = 0;
+  sim->do_export = 0;
   sim->sessionfile = NULL;
   sim->par_rank = 0;
   sim->par_size = 1;
@@ -37,7 +37,7 @@ void MPI_Partition(int PartitioningDimension, simulation_data *sim)
     sim->cart_dims[1] = 1;
 
   MPI_Dims_create(sim->par_size, PartitioningDimension, sim->cart_dims);
-  fprintf(stdout,"%d: cart_dims[]= %d, %d\n", sim->par_rank, sim->cart_dims[0], sim->cart_dims[1]);
+  //fprintf(stdout,"%d: cart_dims[]= %d, %d\n", sim->par_rank, sim->cart_dims[0], sim->cart_dims[1]);
 
   if(MPI_Cart_create(MPI_COMM_WORLD, 2, sim->cart_dims, periods, 0, &sim->topocomm) != MPI_SUCCESS)
     sim->topocomm = MPI_COMM_WORLD;

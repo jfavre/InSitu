@@ -2,6 +2,8 @@
 #define PJACOBI_DATAADAPTOR_H
 
 #include <DataAdaptor.h>
+#include <mpi.h>
+#include "solvers.h"
 #include "vtkSmartPointer.h"
 #include <map>
 #include <string>
@@ -23,7 +25,9 @@ public:
   senseiTypeMacro(JacobiDataAdaptor, sensei::DataAdaptor);
 
   /// Initialize the data adaptor.
-  void Initialize(int m, int rankx, int ranky, int bx, int by, int ng);
+  void Initialize(simulation_data *sim);
+
+  void Update(simulation_data *sim);
 
   /// Set the pointers to simulation memory.
   void AddArray(const std::string& name, double* data);
@@ -45,6 +49,9 @@ public:
   int GetArrayName(const std::string &meshName, int association,
     unsigned int index, std::string &arrayName) override;
   int ReleaseData() override;
+
+  int GetMeshHasGhostNodes(const std::string &meshName, bool &hasGhostNodes, int &nLayers) override;
+  int AddGhostNodesArray(vtkDataObject* mesh, const std::string &meshName) override;
 #else
   vtkDataObject* GetMesh(bool structure_only=false) override;
   bool AddArray(vtkDataObject* mesh, int association, const std::string& arrayname) override;
@@ -65,10 +72,7 @@ protected:
 
   vtkSmartPointer<vtkMultiBlockDataSet> Mesh;
 
-  int Extent[6];
-  double Origin[3];
-  double Spacing[3];
-
+  simulation_data *sim;
 private:
   JacobiDataAdaptor(const JacobiDataAdaptor&); // not implemented.
   void operator=(const JacobiDataAdaptor&); // not implemented.

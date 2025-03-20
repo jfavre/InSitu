@@ -21,9 +21,7 @@ namespace BridgeInternals
 }
 
 //-----------------------------------------------------------------------------
-void bridge_initialize(MPI_Comm comm,
-  int m, int rankx, int ranky, int bx, int by, int ng,
-  const char* config_file)
+void bridge_initialize(MPI_Comm comm, simulation_data *sim, const char *config_file)
 {
   BridgeInternals::comm = comm;
 
@@ -31,7 +29,7 @@ void bridge_initialize(MPI_Comm comm,
   BridgeInternals::GlobalDataAdaptor =
     vtkSmartPointer<pjacobi::JacobiDataAdaptor>::New();
 
-  BridgeInternals::GlobalDataAdaptor->Initialize(m, rankx, ranky, bx, by, ng);
+  BridgeInternals::GlobalDataAdaptor->Initialize(sim);
 
   // initialize the analysis adaptor
   BridgeInternals::GlobalAnalysisAdaptor = vtkSmartPointer<sensei::ConfigurableAnalysis>::New();
@@ -39,11 +37,10 @@ void bridge_initialize(MPI_Comm comm,
 }
 
 //-----------------------------------------------------------------------------
-void bridge_update(int tstep, double time, double* temperature)
+void bridge_update(simulation_data *sim)
 {
-  BridgeInternals::GlobalDataAdaptor->SetDataTime(time);
-  BridgeInternals::GlobalDataAdaptor->SetDataTimeStep(tstep);
-  BridgeInternals::GlobalDataAdaptor->AddArray("temperature", temperature);
+  BridgeInternals::GlobalDataAdaptor->Update(sim);
+
   if (!BridgeInternals::GlobalAnalysisAdaptor->Execute(BridgeInternals::GlobalDataAdaptor))
     {
     cerr << "ERROR: Failed to execute the analysis" << endl;
