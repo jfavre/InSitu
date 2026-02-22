@@ -19,7 +19,7 @@ typedef struct
     int      savingFiles;
     int      saveCounter;
     int      batch;
-    int      export;
+    int      do_export;
     char     *sessionfile;
 } simulation_data;
 
